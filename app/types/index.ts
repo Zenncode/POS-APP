@@ -1,0 +1,124 @@
+// Central domain types — mirrors POS-API Prisma + Zod contracts.
+// Money is ALWAYS integer cents. Format only at render via formatCents().
+
+export type Role = "ADMIN" | "MANAGER" | "CASHIER";
+
+export interface StaffUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  storeId: string | null;
+  isActive: boolean;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  productCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Product {
+  id: string;
+  sku: string;
+  barcode: string | null;
+  name: string;
+  categoryId: string | null;
+  category?: Category | null;
+  priceCents: number;
+  costCents: number | null;
+  taxRateBps: number;
+  stock: number;
+  lowStockThreshold: number;
+  isActive: boolean;
+}
+
+export type OrderStatus = "PENDING" | "PAID" | "VOID" | "REFUNDED";
+export type PaymentMethod = "CASH" | "CARD" | "QR";
+
+export interface OrderItem {
+  id: string;
+  productId: string;
+  nameSnapshot: string;
+  skuSnapshot: string;
+  unitPriceCents: number;
+  quantity: number;
+  lineTotalCents: number;
+}
+
+export interface Payment {
+  id: string;
+  method: PaymentMethod;
+  amountCents: number;
+  reference: string | null;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  cashierId: string;
+  cashier?: Pick<StaffUser, "id" | "name" | "email"> | null;
+  customerId: string | null;
+  customer?: Customer | null;
+  subtotalCents: number;
+  taxCents: number;
+  discountCents: number;
+  totalCents: number;
+  paidCents: number;
+  changeCents: number;
+  note: string | null;
+  items: OrderItem[];
+  payments: Payment[];
+  createdAt: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  loyaltyPoints: number;
+  createdAt?: string;
+  orders?: Order[];
+}
+
+export interface DailyReport {
+  date: string;
+  totalCents: number;
+  orderCount: number;
+  avgTicketCents: number;
+  byHour: { hour: number; totalCents: number; count: number }[];
+  topProducts: { productId: string; name: string; qty: number; totalCents: number }[];
+  lowStock: Product[];
+}
+
+export interface SummaryReport {
+  from: string;
+  to: string;
+  totalCents: number;
+  orderCount: number;
+  avgTicketCents: number;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+// Cart (client-only)
+export interface CartLine {
+  product: Product;
+  qty: number;
+}
+
+export interface CartTotals {
+  subtotalCents: number;
+  taxCents: number;
+  discountCents: number;
+  totalCents: number;
+}

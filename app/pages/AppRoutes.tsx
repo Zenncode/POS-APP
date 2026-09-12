@@ -1,19 +1,7 @@
-import { createBrowserRouter, RouterProvider } from "react-router";
-import MainLayout from "../shared/layouts/MainLayout";
+// Legacy placeholder — routing now lives in app/routes.ts (framework mode).
+// Kept so old imports don't break typecheck.
+import type { JSX } from "react";
 
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: (
-      <MainLayout>
-        <h2>Home page</h2>
-      </MainLayout>
-    )
-  }
-]);
-
-const AppRoutes = (): JSX.Element => {
-  return <RouterProvider router={router} />;
-};
-
-export default AppRoutes;
+export default function AppRoutes(): JSX.Element {
+  return <></>;
+}

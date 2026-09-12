@@ -1,13 +1,10 @@
-import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
+import { Navigate } from "react-router";
+import type { JSX } from "react";
 
-export function meta({}: Route.MetaArgs) {
-  return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
-  ];
+export function meta(): { title: string }[] {
+  return [{ title: "POS Terminal" }];
 }
 
-export default function Home() {
-  return <Welcome />;
+export default function Home(): JSX.Element {
+  return <Navigate to="/register" replace />;
 }

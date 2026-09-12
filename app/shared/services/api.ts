@@ -1,8 +1,4 @@
-import type { AxiosInstance } from "axios";
-import axios from "axios";
-
-const api: AxiosInstance = axios.create({
-  baseURL: "/api"
-});
-
-export default api;
+// Legacy re-export — use ~/lib/api instead. Kept so old imports don't break.
+export * from "~/lib/api";
+import { http } from "~/lib/httpClient";
+export default http;

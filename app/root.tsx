@@ -7,10 +7,14 @@ import {
   ScrollRestoration,
 } from "react-router";
 
-import type { Route } from "./+types/root";
 import "./app.css";
+import { AuthProvider } from "./shared/hooks/useAuth";
+import { ToastProvider } from "./shared/hooks/useToast";
+import { startRealtime } from "./lib/socketClient";
+import { useEffect } from "react";
+import type { ReactNode } from "react";
 
-export const links: Route.LinksFunction = () => [
+export const links: () => { rel: string; href: string; crossOrigin?: string }[] = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -23,7 +27,7 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -42,10 +46,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  useEffect(() => {
+    startRealtime();
+  }, []);
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <Outlet />
+      </ToastProvider>
+    </AuthProvider>
+  );
 }
 
-export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+export function ErrorBoundary({ error }: { error: unknown }) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";
   let stack: string | undefined;
