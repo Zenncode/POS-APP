@@ -36,7 +36,9 @@ export interface Product {
 }
 
 export type OrderStatus = "PENDING" | "PAID" | "VOID" | "REFUNDED";
-export type PaymentMethod = "CASH" | "CARD" | "QR";
+// WALLET is a CLIENT extension pending @api approval (REQUEST 2026-09-13,
+// paymentInputSchema.method). The register only emits it in demo mode.
+export type PaymentMethod = "CASH" | "CARD" | "QR" | "WALLET";
 
 export interface OrderItem {
   id: string;
@@ -101,6 +103,31 @@ export interface SummaryReport {
   totalCents: number;
   orderCount: number;
   avgTicketCents: number;
+}
+
+// Shifts — mirrors POS-API /api/shifts contract (docs/endpoints.md §Shifts).
+// Floats are per-denomination counts, values in cents.
+export interface CashCount {
+  denomination: number; // cents, positive int
+  count: number; // int ≥ 0
+}
+
+export type ShiftStatus = "OPEN" | "CLOSED";
+
+export interface Shift {
+  id: string;
+  userId: string;
+  user?: Pick<StaffUser, "id" | "name" | "email"> | null;
+  storeId?: string | null;
+  status: ShiftStatus;
+  openingFloat: CashCount[];
+  closingFloat?: CashCount[] | null;
+  note?: string | null;
+  // Server naming may vary; both accepted, normalized client-side.
+  startedAt?: string;
+  createdAt?: string;
+  endedAt?: string | null;
+  closedAt?: string | null;
 }
 
 export interface Paginated<T> {

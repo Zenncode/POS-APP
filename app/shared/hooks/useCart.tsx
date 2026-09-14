@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX, ReactNode } from "react";
 import { calcLineTax } from "~/lib/format";
+import { clearStoredCart, loadStoredCart, saveStoredCart } from "~/lib/cartStorage";
 import type { CartLine, CartTotals, Product } from "~/types";
 
 interface CartCtx {
@@ -31,6 +32,24 @@ function compute(lines: CartLine[], discountCents: number): CartTotals {
 export function CartProvider({ children }: { children: ReactNode }): JSX.Element {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [discount, setDiscountState] = useState(0);
+  const hydrated = useRef(false);
+
+  // Hydrate once from offline storage (register reopens mid-sale after reload).
+  useEffect(() => {
+    const stored = loadStoredCart();
+    if (stored && (stored.lines.length > 0 || stored.discountCents > 0)) {
+      setLines(stored.lines);
+      setDiscountState(stored.discountCents);
+    }
+    hydrated.current = true;
+  }, []);
+
+  // Persist (debounced) so refresh/offline never loses the cart.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const t = window.setTimeout(() => saveStoredCart(lines, discount), 200);
+    return () => window.clearTimeout(t);
+  }, [lines, discount]);
 
   const add = useCallback((p: Product) => {
     setLines((prev) => {
@@ -68,6 +87,7 @@ export function CartProvider({ children }: { children: ReactNode }): JSX.Element
   const clear = useCallback(() => {
     setLines([]);
     setDiscountState(0);
+    clearStoredCart();
   }, []);
 
   const setDiscount = useCallback((cents: number) => {

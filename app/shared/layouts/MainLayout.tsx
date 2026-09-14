@@ -1,16 +1,16 @@
-import { Navigate, Outlet, useLocation } from "react-router";
+import { Link, Navigate, Outlet, useLocation } from "react-router";
 import type { JSX } from "react";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Topbar } from "../components/layout/Topbar";
 import { useAuth } from "../hooks/useAuth";
 import { roleAtLeast } from "../hooks/useAuth";
-import { CartProvider } from "../hooks/useCart";
 import type { StaffUser } from "~/types";
 
 const TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/register": { title: "Register", subtitle: "F2 search · F8 charge · Esc close" },
+  "/shift": { title: "Shift", subtitle: "Open/close float · drawer count · variance" },
   "/dashboard": { title: "Dashboard", subtitle: "Today's performance" },
-  "/orders": { title: "Orders", subtitle: "Sales history · void needs manager PIN for cashiers" },
+  "/orders": { title: "Orders", subtitle: "Sales history · voids need a manager PIN" },
   "/products": { title: "Products", subtitle: "Catalog · stock · pricing (cents-accurate)" },
   "/customers": { title: "Customers", subtitle: "Search by name or phone" },
   "/settings": { title: "Settings", subtitle: "Store · device · API" },
@@ -18,6 +18,7 @@ const TITLES: Record<string, { title: string; subtitle?: string }> = {
 
 const NAV_ITEMS = [
   "/register",
+  "/shift",
   "/orders",
   "/products",
   "/dashboard",
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
 
 const NAV_LABELS: Record<string, string> = {
   "/register": "Register",
+  "/shift": "Shift",
   "/orders": "Orders",
   "/products": "Products",
   "/dashboard": "Dashboard",
@@ -76,9 +78,9 @@ export default function MainLayout(): JSX.Element {
   const meta = TITLES[base] ?? TITLES["/register"];
   const { user } = useAuth();
 
+  // CartProvider lives in root.tsx above the Outlet — every route shares one cart.
   return (
-    <CartProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
+    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
         <div className="hidden md:block">
           <Sidebar />
         </div>
@@ -87,9 +89,16 @@ export default function MainLayout(): JSX.Element {
           {/* Mobile nav — always shows core items for the role */}
           <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 py-2 md:hidden" aria-label="Mobile">
             {NAV_ITEMS.filter((item) => canSeeNav(user?.role, item)).map((to) => (
-              <a key={to} href={to} className="rounded-md px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+              <Link
+                key={to}
+                to={to}
+                aria-current={base === to ? "page" : undefined}
+                className={`rounded-md px-3 py-1.5 text-sm ${
+                  base === to ? "bg-gray-100 font-medium text-gray-900" : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
                 {NAV_LABELS[to]}
-              </a>
+              </Link>
             ))}
           </nav>
           <main className="min-h-0 flex-1 overflow-hidden">
@@ -97,6 +106,5 @@ export default function MainLayout(): JSX.Element {
           </main>
         </div>
       </div>
-    </CartProvider>
   );
 }

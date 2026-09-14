@@ -7,9 +7,11 @@ export default [
   layout("shared/layouts/AppShell.tsx", [
     index("routes/home.tsx"),
     route("register", "routes/register.tsx"),
+    route("shift", "routes/shift.tsx"),
     route("dashboard", "routes/dashboard.tsx"),
     route("orders", "routes/orders.tsx"),
     route("orders/:id", "routes/order-detail.tsx"),
+    route("refund", "routes/refund.tsx"),
     route("products", "routes/products.tsx"),
     route("customers", "routes/customers.tsx"),
     route("settings", "routes/settings.tsx"),

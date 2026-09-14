@@ -50,9 +50,65 @@ button:active {
   outline-offset: 1px;
 }
 
+/* Register refresh — sell-screen helpers (monochrome + emerald, 8pt grid) */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #f9fafb;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #374151;
+}
+.pos-tile {
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+.pos-tile:active {
+  transform: scale(0.98);
+}
+@keyframes pos-rise {
+  from { transform: translateY(10px); opacity: 0.4; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.pos-sheet {
+  animation: pos-rise 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pos-sheet { animation: none; }
+  .pos-tile:active { transform: none; }
+}
+
 @media (prefers-color-scheme: dark) {
   html,
   body {
     color-scheme: light;
+  }
+}
+
+/* Receipt printing (FR-29): hide the app chrome, print only the receipt body */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receipt-print,
+  .receipt-print * {
+    visibility: visible;
+  }
+  .receipt-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 72mm;
+    background: #fff;
+    color: #000;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+  }
+  .no-print {
+    display: none !important;
   }
 }

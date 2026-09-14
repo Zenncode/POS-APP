@@ -10,20 +10,20 @@ export const DEMO_CATEGORIES: Category[] = [
 ];
 
 export const DEMO_PRODUCTS: Product[] = [
-  { id: "p-espresso", sku: "CF-001", barcode: "100001", name: "Espresso", categoryId: "cat-coffee", priceCents: 250, costCents: 80, taxRateBps: 1000, stock: 48, lowStockThreshold: 5, isActive: true },
-  { id: "p-latte", sku: "CF-002", barcode: "100002", name: "Cafe Latte", categoryId: "cat-coffee", priceCents: 420, costCents: 120, taxRateBps: 1000, stock: 36, lowStockThreshold: 5, isActive: true },
-  { id: "p-cappuccino", sku: "CF-003", barcode: "100003", name: "Cappuccino", categoryId: "cat-coffee", priceCents: 450, costCents: 130, taxRateBps: 1000, stock: 4, lowStockThreshold: 5, isActive: true },
-  { id: "p-coldbrew", sku: "CF-004", barcode: "100004", name: "Cold Brew", categoryId: "cat-coffee", priceCents: 500, costCents: 140, taxRateBps: 1000, stock: 22, lowStockThreshold: 5, isActive: true },
-  { id: "p-croissant", sku: "PA-001", barcode: "200001", name: "Butter Croissant", categoryId: "cat-pastry", priceCents: 320, costCents: 110, taxRateBps: 1000, stock: 18, lowStockThreshold: 6, isActive: true },
-  { id: "p-banana-bread", sku: "PA-002", barcode: "200002", name: "Banana Bread", categoryId: "cat-pastry", priceCents: 350, costCents: 120, taxRateBps: 1000, stock: 12, lowStockThreshold: 6, isActive: true },
-  { id: "p-ensaymada", sku: "PA-003", barcode: "200003", name: "Ensaymada", categoryId: "cat-pastry", priceCents: 300, costCents: 100, taxRateBps: 1000, stock: 3, lowStockThreshold: 6, isActive: true },
-  { id: "p-cheesecake", sku: "PA-004", barcode: "200004", name: "Cheesecake Slice", categoryId: "cat-pastry", priceCents: 550, costCents: 200, taxRateBps: 1000, stock: 9, lowStockThreshold: 4, isActive: true },
-  { id: "p-mug", sku: "MC-001", barcode: "300001", name: "Store Mug", categoryId: "cat-merch", priceCents: 1200, costCents: 450, taxRateBps: 1000, stock: 15, lowStockThreshold: 3, isActive: true },
-  { id: "p-tumbler", sku: "MC-002", barcode: "300002", name: "Tumbler 500ml", categoryId: "cat-merch", priceCents: 1800, costCents: 700, taxRateBps: 1000, stock: 7, lowStockThreshold: 3, isActive: true },
-  { id: "p-beans", sku: "MC-003", barcode: "300003", name: "House Beans 250g", categoryId: "cat-merch", priceCents: 950, costCents: 380, taxRateBps: 0, stock: 20, lowStockThreshold: 5, isActive: true },
-  { id: "p-rice", sku: "GR-001", barcode: "400001", name: "Rice 5kg", categoryId: "cat-grocery", priceCents: 3250, costCents: 2600, taxRateBps: 0, stock: 14, lowStockThreshold: 4, isActive: true },
-  { id: "p-eggs", sku: "GR-002", barcode: "400002", name: "Eggs 12pcs", categoryId: "cat-grocery", priceCents: 890, costCents: 640, taxRateBps: 0, stock: 2, lowStockThreshold: 6, isActive: true },
-  { id: "p-milk", sku: "GR-003", barcode: "400003", name: "Fresh Milk 1L", categoryId: "cat-grocery", priceCents: 460, costCents: 320, taxRateBps: 0, stock: 25, lowStockThreshold: 8, isActive: true },
+  { id: "p-espresso", sku: "CF-001", barcode: "100001", name: "Espresso", categoryId: "cat-coffee", priceCents: 8000, costCents: 2500, taxRateBps: 1000, stock: 48, lowStockThreshold: 5, isActive: true },
+  { id: "p-latte", sku: "CF-002", barcode: "100002", name: "Cafe Latte", categoryId: "cat-coffee", priceCents: 14000, costCents: 4200, taxRateBps: 1000, stock: 36, lowStockThreshold: 5, isActive: true },
+  { id: "p-cappuccino", sku: "CF-003", barcode: "100003", name: "Cappuccino", categoryId: "cat-coffee", priceCents: 15000, costCents: 4500, taxRateBps: 1000, stock: 4, lowStockThreshold: 5, isActive: true },
+  { id: "p-coldbrew", sku: "CF-004", barcode: "100004", name: "Cold Brew", categoryId: "cat-coffee", priceCents: 16000, costCents: 4800, taxRateBps: 1000, stock: 22, lowStockThreshold: 5, isActive: true },
+  { id: "p-croissant", sku: "PA-001", barcode: "200001", name: "Butter Croissant", categoryId: "cat-pastry", priceCents: 9500, costCents: 3200, taxRateBps: 1000, stock: 18, lowStockThreshold: 6, isActive: true },
+  { id: "p-banana-bread", sku: "PA-002", barcode: "200002", name: "Banana Bread", categoryId: "cat-pastry", priceCents: 11000, costCents: 3800, taxRateBps: 1000, stock: 12, lowStockThreshold: 6, isActive: true },
+  { id: "p-ensaymada", sku: "PA-003", barcode: "200003", name: "Ensaymada", categoryId: "cat-pastry", priceCents: 6500, costCents: 2200, taxRateBps: 1000, stock: 3, lowStockThreshold: 6, isActive: true },
+  { id: "p-cheesecake", sku: "PA-004", barcode: "200004", name: "Cheesecake Slice", categoryId: "cat-pastry", priceCents: 18000, costCents: 6500, taxRateBps: 1000, stock: 9, lowStockThreshold: 4, isActive: true },
+  { id: "p-mug", sku: "MC-001", barcode: "300001", name: "Store Mug", categoryId: "cat-merch", priceCents: 35000, costCents: 13000, taxRateBps: 1000, stock: 15, lowStockThreshold: 3, isActive: true },
+  { id: "p-tumbler", sku: "MC-002", barcode: "300002", name: "Tumbler 500ml", categoryId: "cat-merch", priceCents: 55000, costCents: 21000, taxRateBps: 1000, stock: 7, lowStockThreshold: 3, isActive: true },
+  { id: "p-beans", sku: "MC-003", barcode: "300003", name: "House Beans 250g", categoryId: "cat-merch", priceCents: 42000, costCents: 17000, taxRateBps: 0, stock: 20, lowStockThreshold: 5, isActive: true },
+  { id: "p-rice", sku: "GR-001", barcode: "400001", name: "Rice 5kg", categoryId: "cat-grocery", priceCents: 32500, costCents: 26000, taxRateBps: 0, stock: 14, lowStockThreshold: 4, isActive: true },
+  { id: "p-eggs", sku: "GR-002", barcode: "400002", name: "Eggs 12pcs", categoryId: "cat-grocery", priceCents: 11000, costCents: 7900, taxRateBps: 0, stock: 2, lowStockThreshold: 6, isActive: true },
+  { id: "p-milk", sku: "GR-003", barcode: "400003", name: "Fresh Milk 1L", categoryId: "cat-grocery", priceCents: 12000, costCents: 8400, taxRateBps: 0, stock: 25, lowStockThreshold: 8, isActive: true },
 ];
 
 export const DEMO_CUSTOMERS: Customer[] = [
@@ -54,9 +54,9 @@ function demoOrder(n: number, totalCents: number, status: Order["status"]): Orde
         productId: "p-latte",
         nameSnapshot: "Cafe Latte",
         skuSnapshot: "CF-002",
-        unitPriceCents: 420,
+        unitPriceCents: 14000,
         quantity: 2,
-        lineTotalCents: 840,
+        lineTotalCents: 28000,
       },
     ],
     payments: [{ id: `pay-${n}`, method: "CASH", amountCents: totalCents, reference: null }],
@@ -65,11 +65,11 @@ function demoOrder(n: number, totalCents: number, status: Order["status"]): Orde
 }
 
 export const DEMO_ORDERS: Order[] = [
-  demoOrder(1, 840, "PAID"),
-  demoOrder(2, 1250, "PAID"),
-  demoOrder(3, 500, "VOID"),
-  demoOrder(4, 2100, "PAID"),
-  demoOrder(5, 670, "PAID"),
+  demoOrder(1, 28000, "PAID"),
+  demoOrder(2, 45000, "PAID"),
+  demoOrder(3, 16000, "VOID"),
+  demoOrder(4, 60000, "PAID"),
+  demoOrder(5, 22000, "PAID"),
 ];
 
 export const DEMO_USER = {

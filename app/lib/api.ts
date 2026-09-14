@@ -3,6 +3,7 @@
 import { http, ApiError, setTokens, clearTokens, getAccessToken, request, getApiBase } from "./httpClient";
 import { DEMO_CATEGORIES, DEMO_CUSTOMERS, DEMO_ORDERS, DEMO_PRODUCTS, DEMO_USER, DEMO_USERS } from "./demoData";
 import type {
+  CashCount,
   Category,
   Customer,
   DailyReport,
@@ -10,6 +11,7 @@ import type {
   Paginated,
   PaymentMethod,
   Product,
+  Shift,
   StaffUser,
   SummaryReport,
 } from "../types";
@@ -74,6 +76,136 @@ export async function logout(): Promise<void> {
 export async function requestOverride(pin: string): Promise<string> {
   const res = await http.post<{ overrideToken: string }>("/api/auth/override", { pin });
   return res.overrideToken;
+}
+
+// ── Receipt delivery (FR-31) ─────────────────────────
+// CONTRACT PENDING @api reply: POST /api/orders/:id/receipt
+//   { channels: ["EMAIL"|"SMS"], target, consent } → { queued: boolean }
+// Servers without the endpoint answer 404/501 → normalized to FEATURE_NOT_LIVE
+// so the UI degrades honestly instead of showing a generic failure.
+export async function deliverReceipt(
+  orderId: string,
+  channel: "EMAIL" | "SMS",
+  target: string,
+): Promise<{ queued: boolean; demo: boolean }> {
+  try {
+    const res = await http.post<{ queued?: boolean }>(`/api/orders/${orderId}/receipt`, {
+      channels: [channel],
+      target,
+      consent: true,
+    });
+    markDemo(false);
+    return { queued: res.queued ?? true, demo: false };
+  } catch (e) {
+    if (e instanceof ApiError && e.code === "NETWORK_OFFLINE") {
+      markDemo(true);
+      return { queued: true, demo: true };
+    }
+    if (e instanceof ApiError && (e.status === 404 || e.status === 501)) {
+      throw new ApiError(501, "FEATURE_NOT_LIVE", "Receipt delivery is not available on this server yet");
+    }
+    throw e;
+  }
+}
+
+// ── Shifts ────────────────────────────────────────────
+// Contract: POST /api/shifts/open { openingFloat: [{denomination, count}] },
+// POST /api/shifts/close { closingFloat }, GET /api/shifts/current.
+// Demo mode (offline) persists one shift in localStorage so the full
+// open → sell → close-with-variance loop is testable without a server.
+const DEMO_SHIFT_KEY = "pos.demo.shift";
+
+function loadDemoShift(): Shift | null {
+  try {
+    const raw = window.localStorage.getItem(DEMO_SHIFT_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as Shift;
+    return s && typeof s.id === "string" && Array.isArray(s.openingFloat) ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeDemoShift(s: Shift | null): void {
+  try {
+    if (s) window.localStorage.setItem(DEMO_SHIFT_KEY, JSON.stringify(s));
+    else window.localStorage.removeItem(DEMO_SHIFT_KEY);
+  } catch {
+    // SSR — ignore
+  }
+}
+
+export async function getCurrentShift(): Promise<Shift | null> {
+  try {
+    const res = await http.get<Shift | null>("/api/shifts/current");
+    markDemo(false);
+    return res ?? null;
+  } catch (e) {
+    if (e instanceof ApiError && e.code === "NETWORK_OFFLINE") {
+      markDemo(true);
+      const s = loadDemoShift();
+      return s && s.status === "OPEN" ? s : null;
+    }
+    if (e instanceof ApiError && e.status === 404) return null; // no open shift
+    throw e;
+  }
+}
+
+export async function openShift(openingFloat: CashCount[], note?: string): Promise<Shift> {
+  try {
+    const s = await http.post<Shift>("/api/shifts/open", note ? { openingFloat, note } : { openingFloat });
+    markDemo(false);
+    return s;
+  } catch (e) {
+    if (e instanceof ApiError && e.code === "NETWORK_OFFLINE") {
+      markDemo(true);
+      const existing = loadDemoShift();
+      if (existing && existing.status === "OPEN") {
+        throw new ApiError(409, "SHIFT_OPEN", "A shift is already open");
+      }
+      const iso = new Date().toISOString();
+      const s: Shift = {
+        id: `shift-demo-${Date.now()}`,
+        userId: "u-demo",
+        status: "OPEN",
+        openingFloat,
+        note: note ?? null,
+        startedAt: iso,
+        createdAt: iso,
+      };
+      storeDemoShift(s);
+      return s;
+    }
+    throw e;
+  }
+}
+
+export async function closeShift(closingFloat: CashCount[], note?: string): Promise<Shift> {
+  try {
+    const s = await http.post<Shift>("/api/shifts/close", note ? { closingFloat, note } : { closingFloat });
+    markDemo(false);
+    storeDemoShift(null);
+    return s;
+  } catch (e) {
+    if (e instanceof ApiError && e.code === "NETWORK_OFFLINE") {
+      markDemo(true);
+      const existing = loadDemoShift();
+      if (!existing || existing.status !== "OPEN") {
+        throw new ApiError(404, "NO_SHIFT", "No open shift to close");
+      }
+      const s: Shift = {
+        ...existing,
+        status: "CLOSED",
+        closingFloat,
+        note: note ?? existing.note ?? null,
+        endedAt: new Date().toISOString(),
+        closedAt: new Date().toISOString(),
+      };
+      storeDemoShift(s);
+      return s;
+    }
+    throw e;
+  }
 }
 
 // ── Catalog ───────────────────────────────────────────
@@ -236,12 +368,14 @@ export async function listOrders(params: {
   pageSize?: number;
   status?: string;
   q?: string;
+  from?: string;
 }): Promise<Paginated<Order>> {
   const sp = new URLSearchParams();
   sp.set("page", String(params.page ?? 1));
   sp.set("pageSize", String(params.pageSize ?? 20));
   if (params.status) sp.set("status", params.status);
   if (params.q) sp.set("q", params.q);
+  if (params.from) sp.set("from", params.from);
   try {
     const res = await http.get<Paginated<Order>>(`/api/orders?${sp.toString()}`);
     markDemo(false);
@@ -254,6 +388,10 @@ export async function listOrders(params: {
       if (params.q) {
         const needle = params.q.toLowerCase();
         rows = rows.filter((o) => o.orderNumber.toLowerCase().includes(needle));
+      }
+      if (params.from) {
+        const fromMs = Date.parse(params.from);
+        if (Number.isFinite(fromMs)) rows = rows.filter((o) => Date.parse(o.createdAt) >= fromMs);
       }
       return paginate(rows, params.page ?? 1, params.pageSize ?? 20);
     }
@@ -320,15 +458,15 @@ export async function getDailyReport(date: string): Promise<DailyReport> {
         avgTicketCents: Math.round(total / 4),
         byHour: [9, 10, 11, 12, 13, 14, 15, 16].map((h, i) => ({
           hour: h,
-          totalCents: [1200, 3400, 5600, 8900, 4200, 6100, 4800, 2300][i],
+          totalCents: [42000, 96500, 148000, 210000, 132000, 176000, 154000, 88000][i],
           count: [2, 5, 8, 12, 6, 9, 7, 4][i],
         })),
         topProducts: [
-          { productId: "p-latte", name: "Cafe Latte", qty: 24, totalCents: 10080 },
-          { productId: "p-croissant", name: "Butter Croissant", qty: 18, totalCents: 5760 },
-          { productId: "p-espresso", name: "Espresso", qty: 15, totalCents: 3750 },
-          { productId: "p-milk", name: "Fresh Milk 1L", qty: 11, totalCents: 5060 },
-          { productId: "p-beans", name: "House Beans 250g", qty: 6, totalCents: 5700 },
+          { productId: "p-latte", name: "Cafe Latte", qty: 24, totalCents: 336000 },
+          { productId: "p-croissant", name: "Butter Croissant", qty: 18, totalCents: 171000 },
+          { productId: "p-espresso", name: "Espresso", qty: 15, totalCents: 120000 },
+          { productId: "p-milk", name: "Fresh Milk 1L", qty: 11, totalCents: 132000 },
+          { productId: "p-beans", name: "House Beans 250g", qty: 6, totalCents: 252000 },
         ],
         lowStock: DEMO_PRODUCTS.filter((p) => p.stock <= p.lowStockThreshold),
       };
@@ -341,7 +479,7 @@ export async function getSummary(from: string, to: string): Promise<SummaryRepor
   try {
     return await http.get<SummaryReport>(`/api/reports/sales/summary?from=${from}&to=${to}`);
   } catch {
-    return { from, to, totalCents: 42500, orderCount: 32, avgTicketCents: 1328 };
+    return { from, to, totalCents: 1280000, orderCount: 32, avgTicketCents: 40000 };
   }
 }
 

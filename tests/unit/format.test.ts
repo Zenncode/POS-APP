@@ -5,14 +5,14 @@ import assert from "node:assert/strict";
 import { calcLineTax, formatCents, parseToCents } from "../../app/lib/format.ts";
 
 describe("formatCents", () => {
-  it("happy path", () => assert.equal(formatCents(1999), "$19.99"));
-  it("zero", () => assert.equal(formatCents(0), "$0.00"));
-  it("negative shows sign", () => assert.equal(formatCents(-500), "-$5.00"));
+  it("happy path", () => assert.equal(formatCents(1999), "₱19.99"));
+  it("zero", () => assert.equal(formatCents(0), "₱0.00"));
+  it("negative shows sign", () => assert.equal(formatCents(-500), "-₱5.00"));
   it("custom currency", () => assert.equal(formatCents(100, "€"), "€1.00"));
 });
 
 describe("parseToCents", () => {
-  it("strips $", () => assert.equal(parseToCents("$19.99"), 1999));
+  it("strips currency symbol", () => assert.equal(parseToCents("₱19.99"), 1999));
   it("empty → 0", () => assert.equal(parseToCents(""), 0));
   it("garbage → 0", () => assert.equal(parseToCents("abc"), 0));
   it("negative", () => assert.equal(parseToCents("-5.00"), -500));

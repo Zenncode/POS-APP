@@ -1,7 +1,7 @@
 // Money + date formatting. Money stays integer cents end-to-end —
 // format ONLY at render. Tabular numerals keep columns aligned.
 
-export function formatCents(cents: number, currency = "$"): string {
+export function formatCents(cents: number, currency = "₱"): string {
   const sign = cents < 0 ? "-" : "";
   const abs = Math.abs(cents);
   return `${sign}${currency}${(abs / 100).toFixed(2)}`;

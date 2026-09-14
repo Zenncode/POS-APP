@@ -119,9 +119,9 @@ export default function Products(): JSX.Element {
     <div className="flex h-full min-h-0">
       <div className="w-[220px] shrink-0 border-r border-gray-200 bg-white p-3">
         <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-gray-500">Categories</p>
-        <button onClick={() => setCatId("")} className={`mb-1 w-full rounded-lg px-3 py-2 text-left text-sm ${catId === "" ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"}`}>All</button>
+        <button onClick={() => setCatId("")} className={`mb-1 w-full rounded-lg border-l-2 px-3 py-2 text-left text-sm ${catId === "" ? "border-emerald-700 bg-gray-100 font-medium text-gray-900" : "border-transparent text-gray-700 hover:bg-gray-50"}`}>All</button>
         {categories.map((c) => (
-          <button key={c.id} onClick={() => setCatId(c.id)} className={`mb-1 w-full rounded-lg px-3 py-2 text-left text-sm ${catId === c.id ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"}`}>
+          <button key={c.id} onClick={() => setCatId(c.id)} className={`mb-1 w-full rounded-lg border-l-2 px-3 py-2 text-left text-sm ${catId === c.id ? "border-emerald-700 bg-gray-100 font-medium text-gray-900" : "border-transparent text-gray-700 hover:bg-gray-50"}`}>
             <span className="block truncate">{c.name}</span>
           </button>
         ))}
@@ -136,7 +136,7 @@ export default function Products(): JSX.Element {
             <Button variant="primary" onClick={() => setCreateOpen(true)}>+ Product</Button>
           )}
           {!canManage && (
-            <span className="text-[13px] text-gray-500">Product mgmt: Manager only</span>
+            <span className="text-[13px] text-gray-500">Managers only</span>
           )}
         </div>
 
@@ -161,7 +161,7 @@ export default function Products(): JSX.Element {
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-2.5">
                       <p className="font-medium text-gray-900">{p.name}</p>
-                      <p className="font-mono text-xs text-gray-400">{p.sku}{p.barcode ? ` · ${p.barcode}` : ""}</p>
+                      <p className="text-xs tabular-nums text-gray-400">{p.sku}{p.barcode ? ` · ${p.barcode}` : ""}</p>
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-900">{formatCents(p.priceCents)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-gray-900">{p.stock}</td>
@@ -191,7 +191,7 @@ export default function Products(): JSX.Element {
               <Input label="SKU *" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="CF-005" />
               <Input label="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Mocha" />
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Price * ($)" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="4.50" inputMode="decimal" />
+                <Input label="Price * (₱)" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="4.50" inputMode="decimal" />
                 <Input label="Opening stock" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} inputMode="numeric" />
               </div>
               <Input label="Barcode (optional)" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="100005" />

@@ -35,8 +35,8 @@ export default function Login(): JSX.Element {
     setBusy(true);
     try {
       await signIn(email, password);
-      // Redirect based on RBAC role after sign in
-      navigate("/" + (user?.role ?? "register"), { replace: true });
+      // Register is the default landing screen after login.
+      navigate("/register", { replace: true });
     } catch {
       setError("Sign in failed. Check your email and password.");
     } finally {

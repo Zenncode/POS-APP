@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import type { JSX } from "react";
+import { Navigate, useNavigate } from "react-router";
 import { getOrder, listOrders, voidOrder } from "~/lib/api";
 import { formatCents, formatDateTime } from "~/lib/format";
 import { useAuth, roleAtLeast } from "~/shared/hooks/useAuth";
@@ -7,14 +8,13 @@ import { useToast } from "~/shared/hooks/useToast";
 import { Button } from "~/shared/components/ui/Button";
 import { Input } from "~/shared/components/ui/Input";
 import { EmptyState, Spinner } from "~/shared/components/ui/Feedback";
-import { useNavigate, Navigate } from "react-router";
-import type { Order } from "~/types";
+import type { Order, Role } from "~/types";
 
 export function meta(): { title: string }[] {
   return [{ title: "Refund — POS Terminal" }];
 }
 
-function canRefund(role: string | undefined): boolean {
+function canRefund(role: Role | undefined): boolean {
   return roleAtLeast(role, "MANAGER");
 }
 
@@ -23,189 +23,152 @@ export default function Refund(): JSX.Element {
   const { push } = useToast();
   const navigate = useNavigate();
 
-  // Can't proceed if not MANAGER
-  if (!canRefund(user?.role)) {
-    push("error", "Manager access required.");
-    return <Navigate to="/orders" replace />;
-  }
-
   const [orders, setOrders] = useState<Order[]>([]);
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const [detailError, setDetailError] = useState("");
   const [q, setQ] = useState("");
   const [reason, setReason] = useState("");
-  const [refundType, setRefundType] = useState<"full" | "partial">("full");
-  const [amount, setAmount] = useState<string>("");
   const [refundBusy, setRefundBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listOrders({ status: "PAID", q });
-      setOrders(res.data);
-      setLoading(false);
-    } catch {
-      push("error", "Failed to load orders. Try again.");
-      setLoading(false);
-    }
-  }, [q, push]);
+  const allowed = canRefund(user?.role);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!allowed) push("error", "Manager access required.");
+  }, [allowed, push]);
 
-  const openDetail = async (id: string): Promise<void> => {
+  useEffect(() => {
+    let alive = true;
+    async function load(): Promise<void> {
+      setLoading(true);
+      setListError("");
+      try {
+        const res = await listOrders({ status: "PAID", q: q.trim() || undefined });
+        if (alive) setOrders(res.data);
+      } catch {
+        if (alive) setListError("Failed to load paid orders. Try again.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+    if (allowed) void load();
+    return () => {
+      alive = false;
+    };
+  }, [q, allowed]);
+
+  if (!allowed) return <Navigate to="/orders" replace />;
+
+  async function openDetail(id: string): Promise<void> {
+    setDetailError("");
     try {
       const o = await getOrder(id);
       setOrder(o);
     } catch {
-      push("error", "Failed to open order. Try again.");
+      setDetailError("Failed to open order. Try again.");
     }
-  };
+  }
 
-  const doRefund = async (): Promise<void> => {
-    // @ts-ignore - order is guaranteed to be defined when this is called
+  async function doRefund(): Promise<void> {
     if (!order) return;
     if (!reason.trim()) {
       push("error", "Reason is required.");
       return;
     }
-    if (refundType === "full" && !amount) {
-      push("error", "Full refund selected. No amount needed.");
-      return;
-    }
-    if (refundType === "partial" && (!amount || Number(amount) <= 0)) {
-      push("error", "Valid amount required for partial refund.");
-      return;
-    }
     setRefundBusy(true);
     try {
-      const refundAmount = refundType === "full" ? order!.totalCents : Number(amount);
-      // Use voidOrder logic but with refund purpose
-      // For now, we'll void the order and note it as refund
-      // In a full implementation, this would call a refund endpoint
-      const updated = await voidOrder(order!.id);
-      push("success", `$${formatCents(refundAmount)} refunded for ${order!.orderNumber}`);
-      setRefundBusy(false);
+      await voidOrder(order.id);
+      push("success", `${formatCents(order.totalCents)} refunded (void) for ${order.orderNumber}`);
       setOrder(null);
       setReason("");
-      setAmount("");
-      setRefundType("full");
-      void navigate("/orders", { replace: true });
+      navigate("/orders", { replace: true });
     } catch {
       push("error", "Refund failed. Try again.");
+    } finally {
       setRefundBusy(false);
     }
-  };
+  }
 
   return (
-    <div className="h-full min-h-0 bg-gray-50 p-6">
-      <div className="flex justify-between items-center mb-4">
+    <div className="min-h-0 bg-gray-50 p-6">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Refund</h1>
-        <Button variant="ghost" onClick={() => navigate("/orders", { replace: true})}>Back to Orders</Button>
+        <Button variant="ghost" onClick={() => navigate("/orders", { replace: true })}>
+          Back to Orders
+        </Button>
       </div>
 
-      <div className="mb-6">
-        <p className="text-sm text-gray-600">
-          Order: {order?.orderNumber ?? "Select an order from the list above"}
-        </p>
-        <p className="text-sm text-gray-500">
-          Date: {order?.createdAt ? formatDateTime(order.createdAt) : ""}
-        </p>
-        <p className="text-sm text-gray-500">
-          Customer: {order?.customer?.name ?? "Walk-in"}
-        </p>
-        <p className="text-sm text-gray-500">
-          Total: {order?.totalCents ? formatCents(order.totalCents) : ""}
-        </p>
+      <div className="mb-4">
+        <Input
+          label="Search paid orders"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Order number…"
+        />
       </div>
+
+      {loading ? (
+        <Spinner />
+      ) : listError ? (
+        <EmptyState title={listError} action={<Button onClick={() => setQ((v) => v)}>Retry</Button>} />
+      ) : orders.length === 0 ? (
+        <EmptyState title="No paid orders found. Voided orders stay in Orders →." />
+      ) : (
+        <ul className="mb-6 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
+          {orders.map((o) => (
+            <li key={o.id}>
+              <button
+                type="button"
+                onClick={() => void openDetail(o.id)}
+                className={`flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50 ${
+                  order?.id === o.id ? "bg-emerald-50" : ""
+                }`}
+              >
+                <span className="text-sm font-medium text-gray-900">{o.orderNumber}</span>
+                <span className="text-sm tabular-nums text-emerald-700">{formatCents(o.totalCents)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {detailError ? <p className="mb-4 text-sm text-red-600">{detailError}</p> : null}
 
       {order ? (
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          doRefund();
-        }}>
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm text-gray-500">Refund Type</label>
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                <label>
-                  <input
-                    type="radio"
-                    name="refundType"
-                    value="full"
-                    checked={refundType === "full"}
-                    onChange={() => setRefundType("full")}
-                  />
-                  <span>Full refund ({formatCents(order!.totalCents)})</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="refundType"
-                    value="partial"
-                    checked={refundType === "partial"}
-                    onChange={() => setRefundType("partial")}
-                  />
-                  <span>Partial refund</span>
-                </label>
-              </div>
-            </div>
+        <section className="rounded-lg border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-900">Order: {order.orderNumber}</p>
+          <p className="mt-1 text-sm text-gray-500">Date: {formatDateTime(order.createdAt)}</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Customer: {order.customer?.name ?? "Walk-in"}
+          </p>
+          <p className="mt-1 text-sm tabular-nums text-gray-900">Total: {formatCents(order.totalCents)}</p>
+          <p className="mt-2 text-[13px] text-gray-500">
+            Full void only — restores stock via void. Partial line-level refunds need a backend
+            endpoint (see roadmap).
+          </p>
 
-            {refundType === "partial" ? (
-              <div>
-                <label className="block text-sm text-gray-500">Refund Amount</label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-            ) : (
-              <input type="hidden" name="amount" value={order!.totalCents} />
-            )}
-
-            <label className="block text-sm text-gray-500">Reason for refund *</label>
+          <form
+            className="mt-4 space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void doRefund();
+            }}
+          >
             <Input
+              label="Reason for refund *"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Reason for refund"
               required
             />
-          </div>
-
-          <div className="mt-8 flex gap-2">
-            <Button variant="ghost" full onClick={() => setRefundType("full")}>
-              Full refund
+            <Button variant="danger" full type="submit" disabled={refundBusy}>
+              {refundBusy ? "Refunding…" : `Void + refund ${formatCents(order.totalCents)}`}
             </Button>
-            <Button variant="ghost" full onClick={() => setRefundType("partial")}>
-              Partial refund
-            </Button>
-          </div>
-
-          <div className="mt-8">
-            <Button variant="danger" full onClick={() => doRefund()} disabled={refundBusy}>
-              {refundBusy ? "Refunding…" : "Process Refund"}
-            </Button>
-          </div>
-        </form>
+          </form>
+        </section>
       ) : (
-        <div className="mb-6">
-          <p className="text-sm text-gray-600">
-            Order: {order?.orderNumber ?? "Select an order from the list above"}
-          </p>
-          <p className="text-sm text-gray-500">
-            Date: {order?.createdAt ? formatDateTime(order.createdAt) : ""}
-          </p>
-          <p className="text-sm text-gray-500">
-            Customer: {order?.customer?.name ?? "Walk-in"}
-          </p>
-          <p className="text-sm text-gray-500">
-            Total: {order?.totalCents ? formatCents(order.totalCents) : ""}
-          </p>
-        </div>
+        <p className="text-sm text-gray-500">Select a paid order above to refund it.</p>
       )}
     </div>
   );

@@ -1,23 +1,27 @@
 import type { JSX, ReactNode } from "react";
 import type { OrderStatus } from "~/types";
 
-const styles: Record<string, string> = {
-  PAID: "bg-gray-100 text-gray-800 border-gray-200",
-  PENDING: "bg-amber-50 text-amber-800 border-amber-200",
-  VOID: "bg-white text-red-700 border-red-300",
-  REFUNDED: "bg-amber-50 text-amber-900 border-amber-300",
-  LOW: "bg-red-50 text-red-700 border-red-200",
-  OK: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  MUTED: "bg-gray-50 text-gray-600 border-gray-200",
-  CASH: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  CARD: "bg-blue-50 text-blue-800 border-blue-200",
-  QR: "bg-violet-50 text-violet-800 border-violet-200",
+// Minimal dot badges — status is carried by a small colored dot + label.
+// No pill backgrounds or borders; text stays neutral so dense tables scan clean.
+const dots: Record<string, string> = {
+  PAID: "bg-emerald-600",
+  PENDING: "bg-amber-500",
+  VOID: "bg-gray-400",
+  REFUNDED: "bg-sky-600",
+  LOW: "bg-red-600",
+  OK: "bg-emerald-600",
+  MUTED: "bg-gray-400",
+  CASH: "bg-emerald-600",
+  CARD: "bg-gray-500",
+  QR: "bg-sky-600",
+  WALLET: "bg-violet-600",
 };
 
 export function Badge({ tone, children }: { tone: OrderStatus | string; children: ReactNode }): JSX.Element {
-  const cls = styles[tone] ?? styles["MUTED"];
+  const dot = dots[tone] ?? dots["MUTED"];
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap text-gray-700">
+      <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${dot}`} />
       {children}
     </span>
   );

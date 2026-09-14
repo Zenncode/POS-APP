@@ -8,7 +8,7 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   server: {
-    port: 5174,
+    port: 5173,
     proxy: {
       // POS-API runs on :3001 here (:3000 is taken by another project).
       "/api": {

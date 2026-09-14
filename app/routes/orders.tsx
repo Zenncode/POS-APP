@@ -83,7 +83,7 @@ export default function Orders(): JSX.Element {
 
   return (
     <div className="flex h-full min-h-0">
-      <div className="flex w-full max-w-xl flex-col border-r border-gray-200 bg-white md:w-[480px]">
+      <div className="flex w-full flex-col border-r border-gray-200 bg-white md:w-[480px]">
         <div className="border-b border-gray-200 p-3">
           <div className="flex gap-2">
             <div className="min-w-0 flex-1">
@@ -110,7 +110,7 @@ export default function Orders(): JSX.Element {
                 <li key={o.id}>
                   <button onClick={() => void openDetail(o.id)} className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 ${selected?.id === o.id ? "bg-gray-50" : ""}`}>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-mono text-sm font-medium text-gray-900">{o.orderNumber}</p>
+                      <p className="truncate text-sm font-medium tabular-nums text-gray-900">{o.orderNumber}</p>
                       <p className="text-xs text-gray-500">{formatDateTime(o.createdAt)} · {o.cashier?.name ?? "—"} · {o.items.length} items</p>
                     </div>
                     <Badge tone={o.status}>{o.status}</Badge>
@@ -130,7 +130,7 @@ export default function Orders(): JSX.Element {
           <div className="mx-auto max-w-2xl rounded-[14px] border border-gray-200 bg-white p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-mono text-sm text-gray-500">{selected.orderNumber}</p>
+                <p className="text-sm tabular-nums text-gray-500">{selected.orderNumber}</p>
                 <h2 className="text-lg font-semibold text-gray-900">{formatCents(selected.totalCents)}</h2>
                 <p className="text-[13px] text-gray-500">{formatDateTime(selected.createdAt)} · {selected.cashier?.name ?? "—"}</p>
               </div>
@@ -141,7 +141,7 @@ export default function Orders(): JSX.Element {
             <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
               {selected.items.map((it) => (
                 <li key={it.id} className="flex justify-between px-3 py-2 text-sm">
-                  <span className="text-gray-900">{it.quantity}× {it.nameSnapshot} <span className="font-mono text-xs text-gray-400">{it.skuSnapshot}</span></span>
+                  <span className="text-gray-900">{it.quantity}× {it.nameSnapshot} <span className="text-xs tabular-nums text-gray-400">{it.skuSnapshot}</span></span>
                   <span className="tabular-nums text-gray-900">{formatCents(it.lineTotalCents)}</span>
                 </li>
               ))}

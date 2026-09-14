@@ -18,16 +18,11 @@ function canManageUsers(role: StaffUserType["role"] | undefined): boolean {
 }
 
 export default function StaffManagement(): JSX.Element {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { push } = useToast();
 
-  // Can't proceed if not ADMIN
-  if (!canManageUsers(user?.role)) {
-    push("error", "Admin access required.");
-    return <Navigate to="/register" replace />;
-  }
-
   const role = user?.role;
+  const allowed = canManageUsers(role);
 
   const [users, setUsers] = useState<StaffUserType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,10 +43,26 @@ export default function StaffManagement(): JSX.Element {
     }
   }
 
-  // Load users
+  // Load users — only when allowed; toast once via effect (never during render,
+  // otherwise ToastProvider setState re-renders us into an infinite loop).
   useEffect(() => {
+    if (!authLoading && !allowed) push("error", "Admin access required.");
+  }, [authLoading, allowed, push]);
+
+  useEffect(() => {
+    if (!allowed) return;
     void loadUsers();
-  }, [push]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [push, allowed]);
+
+  if (authLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+  if (!allowed) return <Navigate to="/register" replace />;
 
   // Reset form
   const resetForm = (): void => {

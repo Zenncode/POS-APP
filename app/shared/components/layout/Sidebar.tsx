@@ -4,6 +4,7 @@ import { useAuth, roleAtLeast } from "~/shared/hooks/useAuth";
 
 const NAV = [
   { to: "/register", label: "Register", icon: "◉", hint: "Sell" },
+  { to: "/shift", label: "Shift", icon: "▣", hint: "Open/Close" },
   { to: "/dashboard", label: "Dashboard", icon: "▤", hint: "Today", manager: true },
   { to: "/orders", label: "Orders", icon: "≡", hint: "History" },
   { to: "/products", label: "Products", icon: "▦", hint: "Catalog", manager: true },
@@ -25,13 +26,16 @@ export function Sidebar(): JSX.Element {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-2" aria-label="Primary">
+        <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">Workspace</p>
         {NAV.filter((n) => !("manager" in n && n.manager) || roleAtLeast(user?.role, "MANAGER") || demoMode).map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
             className={({ isActive }) =>
-              `mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                isActive ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
+              `mb-1 flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm transition-colors ${
+                isActive
+                  ? "border-emerald-700 bg-gray-100 font-medium text-gray-900"
+                  : "border-transparent text-gray-700 hover:bg-gray-50"
               }`
             }
           >
