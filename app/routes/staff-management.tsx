@@ -4,13 +4,18 @@ import { listUsers, createUser, updateUser, deleteUser, resetUserPassword } from
 import { useAuth, roleAtLeast } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { Button } from "~/shared/components/ui/Button";
-import { Input } from "~/shared/components/ui/Input";
+import { Badge } from "~/shared/components/ui/Badge";
 import { EmptyState, Spinner } from "~/shared/components/ui/Feedback";
+import { Input } from "~/shared/components/ui/Input";
+import { Modal } from "~/shared/components/ui/Modal";
+import { Select } from "~/shared/components/ui/Select";
+import { Table } from "~/shared/components/ui/Table";
+import type { Column } from "~/shared/components/ui/Table";
 import { Navigate } from "react-router";
-import type { StaffUser, StaffUser as StaffUserType } from "~/types";
+import type { StaffUser as StaffUserType } from "~/types";
 
 export function meta(): { title: string }[] {
-  return [{ title: "Staff Management — POS Terminal" }];
+  return [{ title: "Staff Management — Point of Sale" }];
 }
 
 function canManageUsers(role: StaffUserType["role"] | undefined): boolean {
@@ -29,6 +34,7 @@ export default function StaffManagement(): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState<StaffUserType | null>(null);
   const [form, setForm] = useState({ name: "", role: "CASHIER" as StaffUserType["role"], pin: "", isActive: true });
+  const [formOpen, setFormOpen] = useState(false);
 
   // Load users
   async function loadUsers(): Promise<void> {
@@ -70,14 +76,15 @@ export default function StaffManagement(): JSX.Element {
   };
 
   // Handle role change in form
-  const onRoleChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    setForm({ ...form, role: e.target.value as StaffUserType["role"] });
+  const onRoleChange = (role: string): void => {
+    setForm({ ...form, role: role as StaffUserType["role"] });
   };
 
   // Open add user modal
   const openAddModal = (): void => {
     resetForm();
     setEditing(false);
+    setFormOpen(true);
   };
 
   // Open edit modal
@@ -90,6 +97,7 @@ export default function StaffManagement(): JSX.Element {
       isActive: u.isActive,
     });
     setEditing(true);
+    setFormOpen(true);
   };
 
   // Close modals
@@ -97,6 +105,7 @@ export default function StaffManagement(): JSX.Element {
     setEditing(false);
     setCurrentUser(null);
     resetForm();
+    setFormOpen(false);
   };
 
   // Save user (add or edit)
@@ -165,61 +174,112 @@ export default function StaffManagement(): JSX.Element {
   };
 
   // Empty state
-  const emptyState = users.length === 0 ? (
+  const emptyState = (
     <EmptyState
       title="No staff users yet"
       action={<Button variant="primary" onClick={() => openAddModal()}>Add First User →</Button>}
     />
-  ) : null;
-
-  // User row
-  const userRow = (u: StaffUserType): JSX.Element => (
-    <tr key={u.id} className="hover:bg-gray-50">
-      <td className="px-4 py-2 font-medium text-gray-900 truncate">{u.name}</td>
-      <td className="px-4 py-2 font-medium text-gray-900">{u.role}</td>
-      <td className="px-4 py-2">
-        <span className={`inline-block rounded text-[11px] font-medium ${
-          u.isActive ? "text-emerald-600 bg-emerald-100" : "text-red-600 bg-red-100"
-        }`}>
-          {u.isActive ? "Active" : "Inactive"}
-        </span>
-      </td>
-      <td className="px-4 py-2 text-xs text-gray-500">—</td>
-      <td className="px-4 py-2 text-right">
-        <Button variant="ghost" size="sm" onClick={() => openEditModal(u)}>Edit</Button>
-        <Button variant="ghost" size="sm" onClick={() => handleDelete(u.id)} className="text-red-600">Delete</Button>
-        {u.role !== "ADMIN" && (
-          <Button variant="ghost" size="sm" onClick={() => handleResetPassword(u.id)} className="text-emerald-600">Reset PW</Button>
-        )}
-      </td>
-    </tr>
   );
 
+  const columns: Column<StaffUserType>[] = [
+    {
+      key: "name",
+      header: "Name",
+      render: (u) => <span className="block truncate font-medium text-[var(--color-text)]">{u.name}</span>,
+    },
+    {
+      key: "role",
+      header: "Role",
+      render: (u) => <span className="font-medium text-[var(--color-text)]">{u.role}</span>,
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (u) => <Badge tone={u.isActive ? "OK" : "LOW"}>{u.isActive ? "Active" : "Inactive"}</Badge>,
+    },
+    {
+      key: "lastLogin",
+      header: "Last Login",
+      render: () => <span className="text-xs text-[var(--color-text-muted)]">—</span>,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      render: (u) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => openEditModal(u)}>Edit</Button>
+          <Button variant="ghost" size="sm" onClick={() => handleDelete(u.id)} className="text-[var(--color-danger)]">Delete</Button>
+          {u.role !== "ADMIN" && (
+            <Button variant="ghost" size="sm" onClick={() => handleResetPassword(u.id)} className="text-[var(--color-success)]">Reset PW</Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="h-full min-h-0 bg-gray-50 p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-semibold text-gray-900">Staff Management</h1>
+    <div className="h-full min-h-0 bg-[var(--color-surface)] p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">Staff Management</h1>
         <Button variant="primary" onClick={() => openAddModal()}>+ Add User</Button>
       </div>
 
-      {emptyState}
+      {!loading && users.length === 0 ? (
+        emptyState
+      ) : (
+        <Table
+          columns={columns}
+          data={users}
+          rowKey={(u) => u.id}
+          loading={loading}
+          emptyMessage="No staff users yet"
+        />
+      )}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-max table-fixed w-full border-collapse border-gray-200">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-            <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Role</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Last Login</th>
-              <th className="px-4 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
-            {users.map(userRow)}
-          </tbody>
-        </table>
-      </div>
+      {formOpen && (
+        <Modal title={editing ? "Edit User" : "Add User"} onClose={closeModals}>
+          <form onSubmit={(e) => { e.preventDefault(); void saveUser(); }} className="space-y-4">
+            <Input
+              label="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              autoFocus
+            />
+            <Select
+              label="Role"
+              value={form.role}
+              onChange={onRoleChange}
+              options={[
+                { value: "CASHIER", label: "Cashier" },
+                { value: "MANAGER", label: "Manager" },
+                { value: "ADMIN", label: "Admin" },
+              ]}
+            />
+            <Input
+              label="PIN"
+              type="password"
+              passwordToggle
+              value={form.pin}
+              onChange={(e) => setForm({ ...form, pin: e.target.value })}
+              hint={editing ? "Leave blank to keep the current PIN." : "4–8 digits. Required for ADMIN."}
+            />
+            <label className="flex items-center gap-2 text-sm text-[var(--color-text)]">
+              <input
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+              />
+              Active
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" type="button" onClick={closeModals}>Cancel</Button>
+              <Button variant="primary" type="submit">{editing ? "Save changes" : "Create user"}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
+

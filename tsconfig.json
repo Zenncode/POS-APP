@@ -3,12 +3,13 @@
     "**/*",
     "**/.server/**/*",
     "**/.client/**/*",
-    ".react-router/types/**/*"
+    ".react-router/types/**/*",
+    "app/global.d.ts"
   ],
   "exclude": ["node_modules", "build", ".react-router", "tests"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "types": ["node", "vite/client"],
+    "types": ["node"],
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "bundler",

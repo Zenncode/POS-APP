@@ -149,3 +149,5 @@ export interface CartTotals {
   discountCents: number;
   totalCents: number;
 }
+
+export type ReceiptFormat = "pdf" | "escpos";

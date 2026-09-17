@@ -45,15 +45,15 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
   }, []);
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)] px-6">
       <div>
-        <h1 className="text-[15px] font-semibold text-gray-900">{title}</h1>
-        {subtitle ? <p className="text-[13px] text-gray-500">{subtitle}</p> : null}
+        <h1 className="text-[15px] font-semibold text-[var(--color-text)]">{title}</h1>
+        {subtitle ? <p className="text-[13px] text-[var(--color-text-muted)]">{subtitle}</p> : null}
       </div>
       <div className="flex items-center gap-3 text-[13px]">
-        <span suppressHydrationWarning className="hidden text-gray-500 md:inline">{clock ?? ""}</span>
+        <span suppressHydrationWarning className="hidden text-[var(--color-text-muted)] md:inline">{clock ?? ""}</span>
         {/* Realtime badges — polite live region, dot pulses on socket events */}
-        <span role="status" aria-live="polite" className="flex items-center gap-3 text-xs font-medium text-gray-700">
+        <span role="status" aria-live="polite" className="flex items-center gap-3 text-xs font-medium text-[var(--color-text)]">
           {ordersDelta > 0 ? (
             <span aria-label={`${ordersDelta} new order updates`} className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-emerald-600" />{ordersDelta} new
@@ -66,16 +66,16 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
           ) : null}
         </span>
         {!shiftLoading && !shiftOpen ? (
-          <Link to="/shift" className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-gray-700 hover:text-gray-900">
+          <Link to="/shift" className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-[var(--color-text)] hover:text-[var(--color-primary)]">
             <span className="size-1.5 rounded-full bg-amber-500" /> Shift closed — open to sell
           </Link>
         ) : null}
         {demoMode || online === false ? (
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-gray-700">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-[var(--color-text)]">
             <span className="size-1.5 rounded-full bg-amber-500" /> Demo — API offline
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-gray-700">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-[var(--color-text)]">
             <span className="size-1.5 rounded-full bg-emerald-600" /> Live
           </span>
         )}

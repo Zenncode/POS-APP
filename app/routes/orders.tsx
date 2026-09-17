@@ -9,10 +9,11 @@ import { Button } from "~/shared/components/ui/Button";
 import { EmptyState, Spinner } from "~/shared/components/ui/Feedback";
 import { Input } from "~/shared/components/ui/Input";
 import { Modal } from "~/shared/components/ui/Modal";
+import { Select } from "~/shared/components/ui/Select";
 import type { Order } from "~/types";
 
 export function meta(): { title: string }[] {
-  return [{ title: "Orders — POS Terminal" }];
+  return [{ title: "Orders — Point of Sale" }];
 }
 
 export default function Orders(): JSX.Element {
@@ -83,21 +84,27 @@ export default function Orders(): JSX.Element {
 
   return (
     <div className="flex h-full min-h-0">
-      <div className="flex w-full flex-col border-r border-gray-200 bg-white md:w-[480px]">
-        <div className="border-b border-gray-200 p-3">
+      <div className="flex w-full flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)] md:w-[480px]">
+        <div className="border-b border-[var(--color-border)] p-3">
           <div className="flex gap-2">
             <div className="min-w-0 flex-1">
               <Input placeholder="Search order #…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search orders" />
             </div>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg border border-gray-300 bg-white px-2 text-sm" aria-label="Status filter">
-              <option value="">All</option>
-              <option value="PAID">Paid</option>
-              <option value="PENDING">Pending</option>
-              <option value="VOID">Void</option>
-              <option value="REFUNDED">Refunded</option>
-            </select>
+            <Select
+              value={status}
+              onChange={setStatus}
+              placeholder="All"
+              options={[
+                { value: "PAID", label: "Paid" },
+                { value: "PENDING", label: "Pending" },
+                { value: "VOID", label: "Void" },
+                { value: "REFUNDED", label: "Refunded" },
+              ]}
+              aria-label="Status filter"
+              className="shrink-0"
+            />
           </div>
-          <p className="mt-2 text-xs text-gray-500">{total} orders</p>
+          <p className="mt-2 text-xs text-[var(--color-text-muted)]">{total} orders</p>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {loading ? (
@@ -105,16 +112,16 @@ export default function Orders(): JSX.Element {
           ) : orders.length === 0 ? (
             <div className="p-4"><EmptyState title="No orders found. Make a sale in Register →" /></div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-[var(--color-border)]">
               {orders.map((o) => (
                 <li key={o.id}>
-                  <button onClick={() => void openDetail(o.id)} className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 ${selected?.id === o.id ? "bg-gray-50" : ""}`}>
+                  <button onClick={() => void openDetail(o.id)} className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[var(--color-surface)] ${selected?.id === o.id ? "bg-[var(--color-surface)]" : ""}`}>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium tabular-nums text-gray-900">{o.orderNumber}</p>
-                      <p className="text-xs text-gray-500">{formatDateTime(o.createdAt)} · {o.cashier?.name ?? "—"} · {o.items.length} items</p>
+                      <p className="truncate text-sm font-medium tabular-nums text-[var(--color-text)]">{o.orderNumber}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{formatDateTime(o.createdAt)} · {o.cashier?.name ?? "—"} · {o.items.length} items</p>
                     </div>
                     <Badge tone={o.status}>{o.status}</Badge>
-                    <span className="text-sm font-medium tabular-nums text-gray-900">{formatCents(o.totalCents)}</span>
+                    <span className="text-sm font-medium tabular-nums text-[var(--color-text)]">{formatCents(o.totalCents)}</span>
                   </button>
                 </li>
               ))}
@@ -123,38 +130,38 @@ export default function Orders(): JSX.Element {
         </div>
       </div>
 
-      <div className="hidden min-w-0 flex-1 overflow-y-auto bg-gray-50 p-6 md:block">
+      <div className="hidden min-w-0 flex-1 overflow-y-auto bg-[var(--color-surface)] p-6 md:block">
         {!selected ? (
           <div className="mx-auto max-w-md pt-10"><EmptyState title="Select an order to see items, payments and void action." /></div>
         ) : (
-          <div className="mx-auto max-w-2xl rounded-[14px] border border-gray-200 bg-white p-6">
+          <div className="mx-auto max-w-2xl rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg)] p-6">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm tabular-nums text-gray-500">{selected.orderNumber}</p>
-                <h2 className="text-lg font-semibold text-gray-900">{formatCents(selected.totalCents)}</h2>
-                <p className="text-[13px] text-gray-500">{formatDateTime(selected.createdAt)} · {selected.cashier?.name ?? "—"}</p>
+                <p className="text-sm tabular-nums text-[var(--color-text-muted)]">{selected.orderNumber}</p>
+                <h2 className="text-lg font-semibold text-[var(--color-text)]">{formatCents(selected.totalCents)}</h2>
+                <p className="text-[13px] text-[var(--color-text-muted)]">{formatDateTime(selected.createdAt)} · {selected.cashier?.name ?? "—"}</p>
               </div>
               <Badge tone={selected.status}>{selected.status}</Badge>
             </div>
 
-            <h3 className="mb-2 mt-6 text-sm font-medium text-gray-900">Items</h3>
-            <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+            <h3 className="mb-2 mt-6 text-sm font-medium text-[var(--color-text)]">Items</h3>
+            <ul className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
               {selected.items.map((it) => (
                 <li key={it.id} className="flex justify-between px-3 py-2 text-sm">
-                  <span className="text-gray-900">{it.quantity}× {it.nameSnapshot} <span className="text-xs tabular-nums text-gray-400">{it.skuSnapshot}</span></span>
-                  <span className="tabular-nums text-gray-900">{formatCents(it.lineTotalCents)}</span>
+                  <span className="text-[var(--color-text)]">{it.quantity}× {it.nameSnapshot} <span className="text-xs tabular-nums text-[var(--color-text-muted)]">{it.skuSnapshot}</span></span>
+                  <span className="tabular-nums text-[var(--color-text)]">{formatCents(it.lineTotalCents)}</span>
                 </li>
               ))}
             </ul>
 
-            <dl className="mt-4 space-y-1 text-sm tabular-nums text-gray-600">
+            <dl className="mt-4 space-y-1 text-sm tabular-nums text-[var(--color-text-muted)]">
               <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatCents(selected.subtotalCents)}</dd></div>
               <div className="flex justify-between"><dt>Tax</dt><dd>{formatCents(selected.taxCents)}</dd></div>
               <div className="flex justify-between"><dt>Paid</dt><dd>{formatCents(selected.paidCents)}</dd></div>
               <div className="flex justify-between"><dt>Change</dt><dd>{formatCents(selected.changeCents)}</dd></div>
             </dl>
 
-            <h3 className="mb-2 mt-6 text-sm font-medium text-gray-900">Payments</h3>
+            <h3 className="mb-2 mt-6 text-sm font-medium text-[var(--color-text)]">Payments</h3>
             <div className="flex gap-2">
               {selected.payments.map((p) => (
                 <Badge key={p.id} tone={p.method}>{p.method} · {formatCents(p.amountCents)}</Badge>
@@ -164,7 +171,7 @@ export default function Orders(): JSX.Element {
             {selected.status !== "VOID" ? (
               <div className="mt-6">
                 <Button variant="danger" onClick={() => setVoidOpen(true)}>Void order…</Button>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                   {roleAtLeast(user?.role, "MANAGER") ? "Manager: direct void, stock is restored." : "Cashier: needs manager PIN approval."}
                 </p>
               </div>
@@ -175,10 +182,10 @@ export default function Orders(): JSX.Element {
 
       {voidOpen && selected ? (
         <Modal title={`Void ${selected.orderNumber}?`} onClose={() => setVoidOpen(false)}>
-          <p className="text-sm text-gray-600">Stock will be restored. This cannot be undone.</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Stock will be restored. This cannot be undone.</p>
           {!roleAtLeast(user?.role, "MANAGER") ? (
             <div className="mt-3">
-              <Input label="Manager PIN" type="password" inputMode="numeric" value={voidPin} onChange={(e) => setVoidPin(e.target.value)} placeholder="4-8 digits" autoFocus />
+              <Input label="Manager PIN" type="password" passwordToggle inputMode="numeric" value={voidPin} onChange={(e) => setVoidPin(e.target.value)} placeholder="4-8 digits" autoFocus />
             </div>
           ) : null}
           <div className="mt-4 flex gap-2">
@@ -190,3 +197,4 @@ export default function Orders(): JSX.Element {
     </div>
   );
 }
+

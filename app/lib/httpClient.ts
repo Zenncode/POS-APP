@@ -62,6 +62,7 @@ interface RequestOpts {
   headers?: Record<string, string>;
   auth?: boolean;
   retry?: boolean;
+  responseType?: 'json' | 'arraybuffer' | 'blob';
 }
 
 let refreshInflight: Promise<boolean> | null = null;
@@ -91,7 +92,7 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 export async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
-  const { method = "GET", body, headers = {}, auth = true, retry = true } = opts;
+  const { method = "GET", body, headers = {}, auth = true, retry = true, responseType = 'json' } = opts;
   const url = `${getApiBase()}${path}`;
 
   const finalHeaders: Record<string, string> = { ...headers };
@@ -123,13 +124,30 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
 
   let data: unknown = null;
   try {
-    data = await res.json();
+    if (responseType === 'arraybuffer') {
+      data = await res.arrayBuffer();
+    } else if (responseType === 'blob') {
+      data = await res.blob();
+    } else {
+      data = await res.json();
+    }
   } catch {
     data = null;
   }
 
   if (!res.ok) {
     const obj = (data ?? {}) as { message?: string; code?: string; error?: string };
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      const env = (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {};
+      throw new ApiError(
+        res.status,
+        "API_UNREACHABLE",
+        env["DEV"]
+          ? `Cannot reach POS-API (HTTP ${res.status} via proxy). Start POS-API on :3001 (\`cd POS-API && pnpm dev\`), then retry.`
+          : "Cannot reach the server. Please try again shortly.",
+        data,
+      );
+    }
     throw new ApiError(
       res.status,
       obj.code ?? obj.error ?? `HTTP_${res.status}`,
@@ -140,14 +158,20 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
   return data as T;
 }
 
+export interface HttpOpts {
+  auth?: boolean;
+  retry?: boolean;
+}
+
 export const http = {
-  get: <T>(path: string, headers?: Record<string, string>) => request<T>(path, { headers }),
-  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
-    request<T>(path, { method: "POST", body, headers }),
-  put: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
-    request<T>(path, { method: "PUT", body, headers }),
-  patch: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
-    request<T>(path, { method: "PATCH", body, headers }),
-  del: <T>(path: string, headers?: Record<string, string>) =>
-    request<T>(path, { method: "DELETE", headers }),
+  get: <T>(path: string, headers?: Record<string, string>, opts?: HttpOpts) =>
+    request<T>(path, { headers, ...opts }),
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>, opts?: HttpOpts) =>
+    request<T>(path, { method: "POST", body, headers, ...opts }),
+  put: <T>(path: string, body?: unknown, headers?: Record<string, string>, opts?: HttpOpts) =>
+    request<T>(path, { method: "PUT", body, headers, ...opts }),
+  patch: <T>(path: string, body?: unknown, headers?: Record<string, string>, opts?: HttpOpts) =>
+    request<T>(path, { method: "PATCH", body, headers, ...opts }),
+  del: <T>(path: string, headers?: Record<string, string>, opts?: HttpOpts) =>
+    request<T>(path, { method: "DELETE", headers, ...opts }),
 };

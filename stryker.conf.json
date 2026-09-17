@@ -1,0 +1,27 @@
+{
+    "concurrency":  4,
+    "reporters":  [
+                      "html",
+                      "clear-text",
+                      "progress",
+                      "json"
+                  ],
+    "testRunner":  "vitest",
+    "timeoutFactor":  3,
+    "mutate":  [
+                   "app/shared/components/ui/Button.tsx",
+                   "app/shared/components/ui/Modal.tsx",
+                   "app/shared/components/ui/CartLine.tsx",
+                   "app/shared/components/ui/ProductTile.tsx",
+                   "app/shared/components/ui/Select.tsx",
+                   "app/shared/components/ui/Table.tsx",
+                   "app/shared/components/ui/Toaster.tsx",
+                   "app/shared/components/ui/Badge.tsx",
+                   "app/shared/components/ui/Input.tsx",
+                   "app/shared/components/ui/Feedback.tsx"
+               ],
+    "\\$schema":  "https://stryker-mutator.io/schema/stryker-schema.json",
+    "coverageAnalysis":  "perTest",
+    "timeoutMS":  10000,
+    "since":  true
+}

@@ -109,7 +109,7 @@ Sample files:
 ## `app/styles`
 Description: Global styling files and theme definitions.
 Sample files:
-- `globals.css`
+- `tokens.css`
 
 ## `app/types`
 Description: Type definitions and shared interfaces.

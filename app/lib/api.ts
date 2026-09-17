@@ -11,12 +11,14 @@ import type {
   Paginated,
   PaymentMethod,
   Product,
+  ReceiptFormat,
   Shift,
   StaffUser,
   SummaryReport,
 } from "../types";
 
 export { ApiError };
+export type { ReceiptFormat };
 export let lastUsedDemo = false;
 function markDemo(v: boolean): void {
   lastUsedDemo = v;
@@ -38,7 +40,7 @@ export async function login(email: string, password: string): Promise<{ user: St
     const res = await http.post<{ accessToken: string; refreshToken: string }>("/api/auth/login", {
       email,
       password,
-    });
+    }, undefined, { auth: false, retry: false });
     setTokens(res.accessToken, res.refreshToken);
     const me = await http.get<StaffUser>("/api/auth/me");
     markDemo(false);
@@ -135,11 +137,59 @@ function storeDemoShift(s: Shift | null): void {
   }
 }
 
+// Server shift shape differs from the frontend `Shift` type: the API returns
+// `cashCounts: [{ denomination, count, type }]` plus `openedAt`/`closedAt`
+// (and `openingFloatCents`), while the UI reads `openingFloat`/`closingFloat`
+// plus `startedAt`/`endedAt`. Normalize server → frontend, never the reverse.
+type ApiCashCount = CashCount & { type?: string };
+type ApiShift = Omit<Shift, "openingFloat" | "closingFloat" | "startedAt" | "endedAt"> & {
+  openingFloat?: CashCount[] | null;
+  closingFloat?: CashCount[] | null;
+  startedAt?: string;
+  createdAt?: string;
+  endedAt?: string | null;
+  openedAt?: string;
+  closedAt?: string | null;
+  openingFloatCents?: number;
+  cashCounts?: ApiCashCount[] | null;
+};
+
+function toCounts(rows: ApiCashCount[] | null | undefined): CashCount[] {
+  return (Array.isArray(rows) ? rows : []).map(({ denomination, count }) => ({
+    denomination,
+    count,
+  }));
+}
+
+export function normalizeShift(raw: ApiShift | null | undefined): Shift | null {
+  if (!raw) return null;
+  const counts = Array.isArray(raw.cashCounts) ? raw.cashCounts : [];
+  const openingFloat = Array.isArray(raw.openingFloat)
+    ? raw.openingFloat
+    : toCounts(counts.filter((c) => c.type === "OPENING"));
+  const closingFloat = Array.isArray(raw.closingFloat)
+    ? raw.closingFloat
+    : (() => {
+        const rows = counts.filter((c) => c.type === "CLOSING");
+        return counts.length > 0 || raw.closedAt || raw.endedAt ? toCounts(rows) : (raw.closingFloat ?? null);
+      })();
+  const { cashCounts: _cashCounts, openedAt, closedAt, openingFloatCents: _openingFloatCents, ...rest } = raw;
+  void _cashCounts;
+  void _openingFloatCents;
+  return {
+    ...rest,
+    openingFloat,
+    closingFloat,
+    startedAt: raw.startedAt ?? openedAt ?? raw.createdAt,
+    endedAt: raw.endedAt ?? closedAt ?? null,
+  };
+}
+
 export async function getCurrentShift(): Promise<Shift | null> {
   try {
-    const res = await http.get<Shift | null>("/api/shifts/current");
+    const res = await http.get<ApiShift | null>("/api/shifts/current");
     markDemo(false);
-    return res ?? null;
+    return normalizeShift(res);
   } catch (e) {
     if (e instanceof ApiError && e.code === "NETWORK_OFFLINE") {
       markDemo(true);
@@ -153,9 +203,9 @@ export async function getCurrentShift(): Promise<Shift | null> {
 
 export async function openShift(openingFloat: CashCount[], note?: string): Promise<Shift> {
   try {
-    const s = await http.post<Shift>("/api/shifts/open", note ? { openingFloat, note } : { openingFloat });
+    const s = await http.post<ApiShift>("/api/shifts/open", note ? { openingFloat, note } : { openingFloat });
     markDemo(false);
-    return s;
+    return normalizeShift(s) as Shift;
   } catch (e) {
     if (e instanceof ApiError && e.code === "NETWORK_OFFLINE") {
       markDemo(true);
@@ -182,10 +232,10 @@ export async function openShift(openingFloat: CashCount[], note?: string): Promi
 
 export async function closeShift(closingFloat: CashCount[], note?: string): Promise<Shift> {
   try {
-    const s = await http.post<Shift>("/api/shifts/close", note ? { closingFloat, note } : { closingFloat });
+    const s = await http.post<ApiShift>("/api/shifts/close", note ? { closingFloat, note } : { closingFloat });
     markDemo(false);
     storeDemoShift(null);
-    return s;
+    return normalizeShift(s) as Shift;
   } catch (e) {
     if (e instanceof ApiError && e.code === "NETWORK_OFFLINE") {
       markDemo(true);
@@ -446,7 +496,16 @@ export async function getDailyReport(date: string): Promise<DailyReport> {
   try {
     const res = await http.get<DailyReport>(`/api/reports/sales/daily?date=${date}`);
     markDemo(false);
-    return res;
+    const r = res as Partial<DailyReport>;
+    return {
+      totalCents: r.totalCents ?? 0,
+      orderCount: r.orderCount ?? 0,
+      avgTicketCents: r.avgTicketCents ?? 0,
+      date: r.date ?? date,
+      byHour: r.byHour ?? [],
+      topProducts: r.topProducts ?? [],
+      lowStock: r.lowStock ?? [],
+    };
   } catch (e) {
     if (e instanceof ApiError && (e.code === "NETWORK_OFFLINE" || e.status === 403)) {
       markDemo(true);
@@ -532,4 +591,25 @@ export async function deleteUser(id: string): Promise<void> {
 
 export async function resetUserPassword(id: string): Promise<{ temporaryPassword: string }> {
   return http.post<{ temporaryPassword: string }>(`/api/users/${id}/reset-password`, {});
+}
+
+// ── Receipt ─────────────────────────────────────────────
+export async function getReceipt(
+  orderId: string,
+  query: { format: ReceiptFormat },
+): Promise<ArrayBuffer> {
+  try {
+    const params = new URLSearchParams();
+    params.set('format', query.format);
+    return await request<ArrayBuffer>(`/api/orders/${orderId}/receipt?${params.toString()}`, {
+      auth: true,
+      responseType: 'arraybuffer',
+    });
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'NETWORK_OFFLINE') {
+      // Demo: return empty buffer
+      return new ArrayBuffer(0);
+    }
+    throw e;
+  }
 }

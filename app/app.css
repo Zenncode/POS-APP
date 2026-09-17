@@ -1,8 +1,8 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: system-ui, -apple-system, sans-serif;
   --color-accent: #059669;
   --color-accent-dark: #047857;
   --color-ink: #111827;
@@ -14,8 +14,8 @@
 html,
 body {
   font-family: var(--font-sans);
-  background: #f9fafb;
-  color: #111827;
+  background: var(--color-surface);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -32,7 +32,7 @@ dd.tabular-nums {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--color-border);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-track {
@@ -46,7 +46,7 @@ button:active {
 
 /* Focus visibility for keyboard cashiers */
 :focus-visible {
-  outline: 2px solid #059669;
+  outline: 2px solid var(--color-primary-focus);
   outline-offset: 1px;
 }
 
@@ -54,15 +54,15 @@ button:active {
 .kbd {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-bottom-width: 2px;
   border-radius: 6px;
-  background: #f9fafb;
+  background: var(--color-surface);
   padding: 0 6px;
   font-size: 11px;
   font-weight: 600;
   line-height: 18px;
-  color: #374151;
+  color: var(--color-text);
 }
 .pos-tile {
   transition: border-color 150ms ease, transform 150ms ease;
@@ -80,13 +80,6 @@ button:active {
 @media (prefers-reduced-motion: reduce) {
   .pos-sheet { animation: none; }
   .pos-tile:active { transform: none; }
-}
-
-@media (prefers-color-scheme: dark) {
-  html,
-  body {
-    color-scheme: light;
-  }
 }
 
 /* Receipt printing (FR-29): hide the app chrome, print only the receipt body */
@@ -110,5 +103,19 @@ button:active {
   }
   .no-print {
     display: none !important;
+  }
+}
+
+/* Focus-visible polyfill baseline (moved from deleted styles/globals.css) */
+:focus:not(:focus-visible) { outline: none; }
+:focus-visible { outline: 2px solid var(--color-primary-focus); outline-offset: 2px; }
+
+/* Reduced motion (moved from deleted styles/globals.css) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -11,7 +11,8 @@ export const VARIANCE_NOTE_MAX_CENTS = 10000; // |variance| > ₱100 requires ma
 // Bills: ₱1000/500/200/100/50/20 · Coins: ₱20/10/5/1 · Centavos: 25/10/5/1.
 export const DENOMINATIONS_CENTS = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 100, 25, 10, 5, 1] as const;
 
-export function floatCents(counts: CashCount[]): number {
+export function floatCents(counts: CashCount[] | null | undefined): number {
+  if (!counts) return 0;
   return counts.reduce((s, c) => {
     const d = Math.floor(c.denomination);
     const n = Math.floor(c.count);

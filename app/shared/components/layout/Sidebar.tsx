@@ -16,17 +16,17 @@ export function Sidebar(): JSX.Element {
   const { user, signOut, demoMode } = useAuth();
 
   return (
-    <aside className="flex h-full w-[232px] shrink-0 flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-4">
+    <aside className="flex h-full w-[232px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)]">
+      <div className="flex h-16 items-center gap-2 border-b border-[var(--color-border)] px-4">
         <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-700 text-sm font-bold text-white">P</span>
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-gray-900">POS Terminal</p>
-          <p className="text-xs text-gray-500">{demoMode ? "Demo mode" : "Live"} · {user?.role ?? "—"}</p>
+          <p className="text-sm font-semibold text-[var(--color-text)]">Point of Sale</p>
+          <p className="text-xs text-[var(--color-text-muted)]">{demoMode ? "Demo mode" : "Live"} · {user?.role ?? "—"}</p>
         </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-2" aria-label="Primary">
-        <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">Workspace</p>
+        <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Workspace</p>
         {NAV.filter((n) => !("manager" in n && n.manager) || roleAtLeast(user?.role, "MANAGER") || demoMode).map((n) => (
           <NavLink
             key={n.to}
@@ -34,8 +34,8 @@ export function Sidebar(): JSX.Element {
             className={({ isActive }) =>
               `mb-1 flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm transition-colors ${
                 isActive
-                  ? "border-emerald-700 bg-gray-100 font-medium text-gray-900"
-                  : "border-transparent text-gray-700 hover:bg-gray-50"
+                  ? "border-emerald-700 bg-[var(--color-surface-hover)] font-medium text-[var(--color-text)]"
+                  : "border-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
               }`
             }
           >
@@ -46,14 +46,14 @@ export function Sidebar(): JSX.Element {
         ))}
       </nav>
 
-      <div className="border-t border-gray-200 p-3">
+      <div className="border-t border-[var(--color-border)] p-3">
         <div className="mb-2 px-1">
-          <p className="truncate text-sm font-medium text-gray-900">{user?.name ?? "Staff"}</p>
-          <p className="truncate text-xs text-gray-500">{user?.email ?? ""}</p>
+          <p className="truncate text-sm font-medium text-[var(--color-text)]">{user?.name ?? "Staff"}</p>
+          <p className="truncate text-xs text-[var(--color-text-muted)]">{user?.email ?? ""}</p>
         </div>
         <button
           onClick={() => void signOut()}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
         >
           Sign out
         </button>

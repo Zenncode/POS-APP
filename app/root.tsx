@@ -12,6 +12,7 @@ import { AuthProvider } from "./shared/hooks/useAuth";
 import { ShiftProvider } from "./shared/hooks/useShift";
 import { ToastProvider } from "./shared/hooks/useToast";
 import { CartProvider } from "./shared/hooks/useCart";
+import { Toaster } from "./shared/components/ui/Toaster";
 import { startRealtime } from "./lib/socketClient";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
@@ -61,6 +62,7 @@ export default function App() {
             <Outlet />
           </CartProvider>
         </ShiftProvider>
+        <Toaster />
       </ToastProvider>
     </AuthProvider>
   );
@@ -84,11 +86,11 @@ export function ErrorBoundary({ error }: { error: unknown }) {
 
   return (
     <main className="mx-auto max-w-md px-4 pt-16 text-center">
-      <h1 className="text-2xl font-semibold text-gray-900">{message}</h1>
-      <p className="mt-2 text-sm text-gray-600">{details}</p>
+      <h1 className="text-2xl font-semibold text-[var(--color-text)]">{message}</h1>
+      <p className="mt-2 text-sm text-[var(--color-text-muted)]">{details}</p>
       {stack && (
-        <pre className="mt-4 w-full overflow-x-auto rounded-lg border border-gray-200 bg-white p-4 text-left">
-          <code className="text-xs text-gray-700">{stack}</code>
+        <pre className="mt-4 w-full overflow-x-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-left">
+          <code className="text-xs text-[var(--color-neutral-700)]">{stack}</code>
         </pre>
       )}
     </main>

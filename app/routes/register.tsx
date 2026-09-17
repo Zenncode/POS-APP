@@ -1,27 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { ApiError, checkout, deliverReceipt, listCategories, listCustomers, listProducts, lookupBarcode, requestOverride } from "~/lib/api";
-import { formatCents, formatDateTime, newIdempotencyKey, parseToCents } from "~/lib/format";
+import { formatCents, newIdempotencyKey, parseToCents } from "~/lib/format";
 import { discountOverThreshold, splitOverpayAllowed, validEmail, validPhone } from "~/lib/posRules";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useCart } from "~/shared/hooks/useCart";
 import { useShift } from "~/shared/hooks/useShift";
+import { useSocket } from "~/shared/hooks/useSocket";
+import { useThermalPrint } from "~/shared/hooks/useThermalPrint";
 import { useToast } from "~/shared/hooks/useToast";
-import { Badge } from "~/shared/components/ui/Badge";
 import { Button } from "~/shared/components/ui/Button";
+import { CartLine } from "~/shared/components/ui/CartLine";
 import { EmptyState, Spinner } from "~/shared/components/ui/Feedback";
 import { Input } from "~/shared/components/ui/Input";
 import { Modal } from "~/shared/components/ui/Modal";
+import { ProductTile } from "~/shared/components/ui/ProductTile";
+import { Select } from "~/shared/components/ui/Select";
 import type { Category, Customer, PaymentMethod, Product } from "~/types";
 
 export function meta(): { title: string }[] {
-  return [{ title: "Register — POS Terminal" }];
+  return [{ title: "Register — Point of Sale" }];
 }
 
 const QUICK_CASH = [0, 2000, 5000, 10000];
-// WALLET stays out of split rows (rare combo + server support unconfirmed).
-const METHODS: PaymentMethod[] = ["CASH", "CARD", "QR"];
 type PayTab = PaymentMethod | "SPLIT";
 
 interface TenderRow {
@@ -30,16 +32,34 @@ interface TenderRow {
 }
 
 export default function Register(): JSX.Element {
-  const { lines, totals, count, add, inc, dec, setQty, remove, clear, setDiscount } = useCart();
+  const { lines, totals, add, inc, dec, setQty, remove, clear, setDiscount } = useCart();
   const { push } = useToast();
   const { demoMode } = useAuth();
-  const { shift, loading: shiftLoading, refresh: refreshShift } = useShift();
+  const { shift, loading: shiftLoading } = useShift();
   const navigate = useNavigate();
   const shiftOpen = !!shift && shift.status === "OPEN";
-  // WALLET tab only exists in demo mode until @api lands it in paymentInputSchema.
-  const payTabs: PayTab[] = demoMode
-    ? ["CASH", "CARD", "QR", "WALLET", "SPLIT"]
-    : ["CASH", "CARD", "QR", "SPLIT"];
+
+  // Real-time socket for order:created, stock:low, session:revoked
+  const storeId = shift?.storeId ?? null;
+  useSocket({
+    storeId: storeId ?? undefined,
+    onStockLow: (data) => {
+      push("warning", `⚠️ Low stock: ${data.productName} (${data.currentStock} left)`);
+      void load(); // refresh product list
+    },
+    onOrderCreated: (data) => {
+      if (data.itemCount > 0) {
+        push("info", `📦 New order: ${data.orderNumber} (${data.itemCount} items)`);
+      }
+    },
+    onSessionRevoked: () => {
+      push("error", "Your session was revoked. Please log in again.");
+      navigate("/login", { replace: true });
+    },
+  });
+
+  // Thermal printer support
+  const { printing: thermalPrinting, printOrder: thermalPrintOrder } = useThermalPrint();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -145,9 +165,6 @@ export default function Register(): JSX.Element {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lines.length, payOpen, receipt, pinOpen, shiftOpen]);
-
-  const lowStockCount = useMemo(() => products.filter((p) => p.stock <= p.lowStockThreshold).length, [products]);
-  const activeCategoryName = catId ? (categories.find((c) => c.id === catId)?.name ?? "") : "";
 
   function addWithStockCheck(p: Product): void {
     if (p.stock <= 0) {
@@ -358,64 +375,49 @@ export default function Register(): JSX.Element {
   return (
     <div className="flex h-full min-h-0">
       {/* Left rail — 240px */}
-      <div className="flex w-[240px] shrink-0 flex-col border-r border-gray-200 bg-white">
+      <div className="flex w-[240px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)]">
         <div className="p-3">
           <Input
             ref={searchRef}
-            placeholder="Search or scan… (F2)"
+            placeholder="Search or scan…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void onSearchEnter();
             }}
             aria-label="Search products"
+            autoFocus
           />
-          <p className="mt-1 px-1 text-[11px] text-gray-400">F2 search · F3 customer · F4 discount · Enter adds barcode</p>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           <button
             onClick={() => setCatId("")}
             aria-current={catId === "" ? "true" : undefined}
-            className={`mb-1 flex w-full items-center justify-between rounded-lg border-l-2 px-3 py-2 text-sm ${catId === "" ? "border-emerald-700 bg-gray-100 font-medium text-gray-900" : "border-transparent text-gray-700 hover:bg-gray-50"}`}
+            className={`mb-1 flex w-full items-center justify-between px-3 py-2 text-sm ${catId === "" ? "border-l-2 border-emerald-700 bg-[var(--color-surface-hover)] font-medium text-[var(--color-text)]" : "border-transparent text-[var(--color-neutral-700)] hover:bg-[var(--color-surface)]"}`}
           >
             All items
-            <span className="text-xs text-gray-500">{products.length}</span>
           </button>
           {categories.map((c) => (
             <button
               key={c.id}
               onClick={() => setCatId(c.id)}
               aria-current={catId === c.id ? "true" : undefined}
-              className={`mb-1 flex w-full items-center justify-between rounded-lg border-l-2 px-3 py-2 text-sm ${catId === c.id ? "border-emerald-700 bg-gray-100 font-medium text-gray-900" : "border-transparent text-gray-700 hover:bg-gray-50"}`}
+              className={`mb-1 flex w-full items-center px-3 py-2 text-sm ${catId === c.id ? "border-l-2 border-emerald-700 bg-[var(--color-surface-hover)] font-medium text-[var(--color-text)]" : "border-transparent text-[var(--color-neutral-700)] hover:bg-[var(--color-surface)]"}`}
             >
               <span className="truncate">{c.name}</span>
-              {typeof c.productCount === "number" ? <span className="text-xs text-gray-500">{c.productCount}</span> : null}
             </button>
           ))}
-        </div>
-        <div className="border-t border-gray-200 p-3 text-[13px] text-gray-600">
-          {lowStockCount > 0 ? (
-            <span className="inline-flex items-center gap-2">
-              <span aria-hidden className="size-1.5 rounded-full bg-red-600" />
-              <Badge tone="LOW">{lowStockCount} low stock</Badge>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-2">
-              <span aria-hidden className="size-1.5 rounded-full bg-emerald-600" />
-              <span className="text-gray-500">Stock healthy</span>
-            </span>
-          )}
         </div>
       </div>
 
       {/* Center — product grid (shift-gated) */}
-      <div className="min-w-0 flex-1 overflow-y-auto bg-gray-50 p-4">
+      <div className="min-w-0 flex-1 overflow-y-auto bg-[var(--color-surface)] p-4">
         {shiftLoading ? (
           <Spinner />
         ) : !shiftOpen ? (
           <div className="pt-16">
             <EmptyState
-              title="No open shift — sales are blocked until you open one."
+              title="Open a shift to start selling"
               action={<Button variant="primary" onClick={() => navigate("/shift")}>Open shift</Button>}
             />
           </div>
@@ -424,73 +426,29 @@ export default function Register(): JSX.Element {
         ) : loadError ? (
           <EmptyState title={loadError} action={<Button onClick={() => void load()}>Retry</Button>} />
         ) : products.length === 0 ? (
-          <EmptyState
-            title={catId || debouncedQ ? "No products match. Try another search →" : "No products yet. Add one in Products →"}
-          />
+          <EmptyState title={catId || debouncedQ ? "No products match" : "No products. Add one in Products"} />
         ) : (
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[13px] text-gray-500">
-                {products.length} {products.length === 1 ? "item" : "items"}
-                {activeCategoryName ? ` · ${activeCategoryName}` : ""}
-              </p>
-              <p className="text-[11px] text-gray-400">Tap a tile to add · F2 search</p>
-            </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {products.map((p) => {
-              const low = p.stock <= p.lowStockThreshold;
-              const out = p.stock <= 0;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => addWithStockCheck(p)}
-                  disabled={out}
-                  title={out ? `${p.name} — out of stock` : `Add ${p.name} to cart`}
-                  className="pos-tile rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <p className="truncate text-sm font-medium text-gray-900">{p.name}</p>
-                  <p className="mt-0.5 text-[11px] tabular-nums text-gray-400">{p.sku}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[15px] font-semibold tabular-nums text-emerald-800">{formatCents(p.priceCents)}</span>
-                    {out ? (
-                      <Badge tone="LOW">Out</Badge>
-                    ) : low ? (
-                      <Badge tone="LOW">{p.stock} left</Badge>
-                    ) : (
-                      <span className="text-xs tabular-nums text-gray-400">×{p.stock}</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+            {products.map((p) => (
+              <ProductTile key={p.id} product={p} onAdd={addWithStockCheck} />
+            ))}
           </div>
         )}
       </div>
 
       {/* Right cart — 380px */}
-      <div className="flex w-[380px] shrink-0 flex-col border-l border-gray-200 bg-white">
-        <div className="border-b border-gray-200 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Current sale</p>
-            <span className="text-xs tabular-nums text-gray-400">{count} {count === 1 ? "item" : "items"}</span>
-          </div>
+      <div className="flex w-[380px] shrink-0 flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)]">
+        <div className="border-b border-[var(--color-border)] p-3">
           <div className="flex gap-2">
-            <select
+            <Select
               ref={custRef}
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className="h-9 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-sm"
+              onChange={setCustomerId}
+              placeholder="Walk-in"
+              options={[{ value: "", label: "Walk-in" }, ...customers.map((c) => ({ value: c.id, label: c.name }))]}
               aria-label="Customer"
-            >
-              <option value="">Walk-in</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.phone ? ` · ${c.phone}` : ""}
-                </option>
-              ))}
-            </select>
-            <input
+            />
+            <Input
               ref={discRef}
               value={discValue}
               onChange={(e) => setDiscValue(e.target.value)}
@@ -498,139 +456,76 @@ export default function Register(): JSX.Element {
               onKeyDown={(e) => {
                 if (e.key === "Enter") commitDiscount();
               }}
-              placeholder={discMode === "PCT" ? "% disc" : "₱ disc"}
-              className="h-9 w-20 rounded-lg border border-gray-300 px-2 text-sm tabular-nums"
+              placeholder="% disc"
+              className="h-9 w-20 text-sm tabular-nums"
               aria-label="Discount"
             />
             <button
               onClick={() => setDiscMode((m) => (m === "PCT" ? "FIX" : "PCT"))}
-              className="h-9 w-10 shrink-0 rounded-lg border border-gray-300 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              className="h-9 w-10 shrink-0 rounded-lg border border-[var(--color-border)] text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
               aria-label="Toggle discount mode"
-              title={approvedDisc ? "Manager approved — changes above the limit re-ask the PIN" : "Toggle % / fixed amount"}
             >
               {discMode === "PCT" ? "%" : "₱"}
             </button>
           </div>
-          {selectedCustomer ? (
-            <p className="mt-1 truncate text-xs text-gray-500">
-              Member · {selectedCustomer.name} — {selectedCustomer.loyaltyPoints} pts
-            </p>
-          ) : null}
+          {selectedCustomer && (
+            <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">{selectedCustomer.name}</p>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           {lines.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray-500">Cart is empty.<br />Tap a product to add it.</p>
+            <p className="py-10 text-center text-sm text-[var(--color-text-muted)]">Cart empty</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-[var(--color-border)]" role="list" aria-label="Cart items">
               {lines.map((l) => (
-                <li key={l.product.id} className="flex items-center gap-2 py-2">
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => dec(l.product.id)} className="flex size-7 items-center justify-center rounded-md border border-gray-300 text-sm hover:bg-gray-50" aria-label={`Decrease ${l.product.name}`}>−</button>
-                    <input
-                      value={l.qty}
-                      onChange={(e) => {
-                        const raw = Number(e.target.value);
-                        if (e.target.value.trim() === "" || !Number.isFinite(raw)) return;
-                        const n = Math.floor(raw);
-                        if (n <= 0) {
-                          if (window.confirm(`Remove ${l.product.name} from the cart?`)) remove(l.product.id);
-                          return;
-                        }
-                        if (n > l.product.stock) {
-                          push("error", `Only ${l.product.stock} × ${l.product.name} in stock (FR-19).`);
-                          setQty(l.product.id, l.product.stock);
-                          return;
-                        }
-                        setQty(l.product.id, n);
-                      }}
-                      className="h-7 w-10 rounded-md border border-gray-300 text-center text-sm tabular-nums"
-                      aria-label={`${l.product.name} quantity`}
-                    />
-                    <button
-                      onClick={() => {
-                        if (l.qty >= l.product.stock) {
-                          push("error", `Only ${l.product.stock} × ${l.product.name} in stock (FR-19).`);
-                          return;
-                        }
-                        inc(l.product.id);
-                      }}
-                      className="flex size-7 items-center justify-center rounded-md border border-gray-300 text-sm hover:bg-gray-50"
-                      aria-label={`Increase ${l.product.name}`}
-                    >+</button>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{l.product.name}</p>
-                    <p className="text-xs tabular-nums text-gray-500">{formatCents(l.product.priceCents)} each</p>
-                  </div>
-                  <span className="text-sm font-medium tabular-nums text-gray-900">{formatCents(l.product.priceCents * l.qty)}</span>
-                  <button onClick={() => remove(l.product.id)} className="px-1 text-gray-400 hover:text-red-600" aria-label={`Remove ${l.product.name}`}>✕</button>
-                </li>
+                <CartLine
+                  key={l.product.id}
+                  line={l}
+                  onInc={inc}
+                  onDec={dec}
+                  onSetQty={setQty}
+                  onRemove={remove}
+                />
               ))}
             </ul>
           )}
         </div>
 
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-[var(--color-border)] p-4">
           <dl className="space-y-1 text-sm tabular-nums">
-            <div className="flex justify-between text-gray-600"><dt>Subtotal</dt><dd>{formatCents(totals.subtotalCents)}</dd></div>
-            <div className="flex justify-between text-gray-600"><dt>Tax</dt><dd>{formatCents(totals.taxCents)}</dd></div>
-            {totals.discountCents > 0 ? (
-              <div className="flex justify-between text-gray-600">
-                <dt>Discount{approvedDisc ? " (mgr)" : ""}</dt>
-                <dd>−{formatCents(totals.discountCents)}</dd>
-              </div>
-            ) : null}
-            <div className="flex justify-between border-t border-gray-200 pt-2 text-xl font-semibold tracking-tight">
-              <dt className="text-gray-900">Total</dt>
-              <dd className="text-emerald-800" aria-live="polite">{formatCents(totals.totalCents)}</dd>
+            <div className="flex justify-between"><dd>{formatCents(totals.subtotalCents)}</dd></div>
+            <div className="flex justify-between"><dd>{formatCents(totals.taxCents)}</dd></div>
+            {totals.discountCents > 0 && (
+              <div className="flex justify-between text-[var(--color-danger)]"><dd>−{formatCents(totals.discountCents)}</dd></div>
+            )}
+            <div className="flex justify-between border-t border-[var(--color-border)] pt-2 text-xl font-semibold">
+              <dd className="text-[var(--color-success)]" aria-live="polite">{formatCents(totals.totalCents)}</dd>
             </div>
           </dl>
-          <div className="mt-3 flex gap-2">
-            <Button variant="ghost" onClick={clear} disabled={lines.length === 0}>Clear</Button>
-            <Button
-              variant="primary"
-              size="lg"
-              full
-              onClick={() => {
-                if (!shiftOpen) {
-                  navigate("/shift");
-                  return;
-                }
-                setPayOpen(true);
-              }}
-              disabled={lines.length === 0 || !shiftOpen}
-            >
-              {shiftOpen ? (
-                <span className="inline-flex items-center gap-2">Charge {formatCents(totals.totalCents)} <kbd className="kbd">F8</kbd></span>
-              ) : (
-                "Open shift first"
-              )}
-            </Button>
-          </div>
-          <p className="mt-2 text-center text-xs text-gray-400">
-            {count} {count === 1 ? "item" : "items"}
-            {shift ? (
-              <>
-                {" · "}
-                <Link to="/shift" className="text-gray-500 underline-offset-2 hover:underline">
-                  Shift open since {formatDateTime(shift.startedAt ?? shift.createdAt ?? "")}
-                </Link>
-              </>
-            ) : null}
-          </p>
+          <Button
+            variant="primary"
+            size="lg"
+            full
+            loading={charging}
+            onClick={() => {
+              if (!shiftOpen) { navigate("/shift"); return; }
+              setPayOpen(true);
+            }}
+            disabled={lines.length === 0 || !shiftOpen}
+          >
+            Charge {formatCents(totals.totalCents)} <kbd className="kbd">F8</kbd>
+          </Button>
         </div>
       </div>
 
       {/* Manager PIN for over-threshold discount (FR-28) */}
       {pinOpen ? (
         <Modal title="Manager approval needed" onClose={() => setPinOpen(false)}>
-          <p className="mb-3 text-sm text-gray-600">
-            This discount exceeds the cashier limit (10% or {formatCents(50000)}). Ask a manager for their PIN.
-          </p>
           <Input
             label="Manager PIN"
             type="password"
+            passwordToggle
             inputMode="numeric"
             value={pinValue}
             onChange={(e) => setPinValue(e.target.value)}
@@ -641,8 +536,8 @@ export default function Register(): JSX.Element {
             autoFocus
           />
           <div className="mt-4 flex gap-2">
-            <Button variant="ghost" full onClick={() => setPinOpen(false)}>Cancel · Esc</Button>
-            <Button variant="primary" full onClick={() => void approvePin()} disabled={pinBusy}>
+            <Button variant="ghost" full onClick={() => setPinOpen(false)}>Cancel</Button>
+            <Button variant="primary" full onClick={() => void approvePin()} loading={pinBusy}>
               {pinBusy ? "Checking…" : "Approve"}
             </Button>
           </div>
@@ -651,15 +546,15 @@ export default function Register(): JSX.Element {
 
       {/* Payment sheet */}
       {payOpen ? (
-        <Modal title={`Charge ${formatCents(totals.totalCents)}`} onClose={() => setPayOpen(false)}>
+        <Modal title={formatCents(totals.totalCents)} onClose={() => setPayOpen(false)}>
           <div className="mb-3 flex gap-2" role="tablist" aria-label="Payment method">
-            {payTabs.map((m) => (
+            {(["CASH", "CARD", "QR", "SPLIT"] as const).map((m) => (
               <button
                 key={m}
                 role="tab"
                 aria-selected={payTab === m}
                 onClick={() => setPayTab(m)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${payTab === m ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${payTab === m ? "border-[var(--color-primary)] bg-[var(--color-success)]/10 text-[var(--color-success)]" : "border-[var(--color-border)] text-[var(--color-neutral-700)] hover:bg-[var(--color-surface)]"}`}
               >
                 {m}
               </button>
@@ -668,145 +563,135 @@ export default function Register(): JSX.Element {
 
           {payTab === "CASH" ? (
             <>
-              <Input label="Cash tendered" value={tendered} onChange={(e) => setTendered(e.target.value)} placeholder="0.00" autoFocus />
+              <Input value={tendered} onChange={(e) => setTendered(e.target.value)} placeholder="0.00" autoFocus />
               <div className="mt-2 flex gap-2">
                 {QUICK_CASH.map((c) => (
                   <button
                     key={c}
                     onClick={() => setTendered(c === 0 ? (totals.totalCents / 100).toFixed(2) : (c / 100).toFixed(2))}
-                    className="flex-1 rounded-lg border border-gray-300 px-2 py-2 text-sm hover:bg-gray-50"
+                    className="flex-1 rounded-lg border border-[var(--color-border)] px-2 py-2 text-sm hover:bg-[var(--color-surface)]"
                   >
                     {c === 0 ? "Exact" : formatCents(c)}
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-sm tabular-nums text-gray-600">
-                Change due: <span className="font-semibold text-emerald-800">{formatCents(Math.max(0, tenderedCents - totals.totalCents))}</span>
+              <p className="mt-2 text-sm tabular-nums text-[var(--color-success)] font-semibold">
+                {formatCents(Math.max(0, tenderedCents - totals.totalCents))}
               </p>
             </>
           ) : payTab === "SPLIT" ? (
             <div>
               {tenders.map((t, i) => (
-                <div key={i} className="mb-2 flex items-center gap-2">
-                  <select
+                <div key={i} className="mb-2 flex gap-2">
+                  <Select
                     value={t.method}
-                    onChange={(e) =>
-                      setTenders((prev) => prev.map((row, j) => (j === i ? { ...row, method: e.target.value as PaymentMethod } : row)))
-                    }
-                    className="h-10 w-24 shrink-0 rounded-lg border border-gray-300 bg-white px-2 text-sm"
+                    onChange={(method) => setTenders((prev) => prev.map((row, j) => (j === i ? { ...row, method: method as PaymentMethod } : row)))}
+                    options={["CASH", "CARD", "QR"].map((m) => ({ value: m, label: m }))}
                     aria-label={`Tender ${i + 1} method`}
-                  >
-                    {METHODS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  <div className="min-w-0 flex-1">
-                    <Input
-                      value={t.amount}
-                      onChange={(e) => setTenders((prev) => prev.map((row, j) => (j === i ? { ...row, amount: e.target.value } : row)))}
-                      placeholder="0.00"
-                      aria-label={`Tender ${i + 1} amount`}
-                    />
-                  </div>
-                  <span className="w-16 shrink-0 text-right text-sm tabular-nums text-gray-500">
+                    className="h-10 w-24 shrink-0"
+                  />
+                  <Input
+                    value={t.amount}
+                    onChange={(e) => setTenders((prev) => prev.map((row, j) => (j === i ? { ...row, amount: e.target.value } : row)))}
+                    placeholder="0.00"
+                    aria-label={`Tender ${i + 1} amount`}
+                    className="flex-1"
+                  />
+                  <span className="w-16 shrink-0 text-right text-sm tabular-nums text-[var(--color-text-muted)]">
                     {formatCents(parseToCents(t.amount || "0"))}
                   </span>
-                  {tenders.length > 2 ? (
+                  {tenders.length > 2 && (
                     <button
                       onClick={() => setTenders((prev) => prev.filter((_, j) => j !== i))}
-                      className="shrink-0 px-1 text-gray-400 hover:text-red-600"
+                      className="shrink-0 px-1 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
                       aria-label={`Remove tender ${i + 1}`}
                     >
                       ✕
                     </button>
-                  ) : null}
+                  )}
                 </div>
               ))}
               <button
                 onClick={() => setTenders((prev) => [...prev, { method: "QR", amount: "" }])}
                 disabled={tenders.length >= 4}
-                className="w-full rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                className="w-full rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] disabled:opacity-50"
               >
-                + Add tender ({tenders.length}/4)
+                + Add tender
               </button>
-              <p className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div className="mt-2 h-1.5 rounded-full bg-[var(--color-surface-hover)]">
                 <span
-                  className="block h-full bg-emerald-600 transition-all"
+                  className="block h-full bg-[var(--color-success)] transition-all"
                   style={{ width: `${Math.min(100, totals.totalCents > 0 ? (splitSum / totals.totalCents) * 100 : 0)}%` }}
                 />
-              </p>
-              <p className={`mt-2 text-sm tabular-nums ${splitRemaining === 0 ? "text-emerald-800" : splitRemaining > 0 ? "text-gray-600" : "text-red-700"}`}>
+              </div>
+              <p className="mt-2 text-sm tabular-nums" style={{ color: splitRemaining > 0 ? "var(--color-text-muted)" : splitRemaining < 0 ? "var(--color-danger)" : "var(--color-success)" }}>
                 {splitRemaining > 0
-                  ? `Collected ${formatCents(splitSum)} — ${formatCents(splitRemaining)} still due`
+                  ? `${formatCents(splitSum)} / ${formatCents(totals.totalCents)}`
                   : splitRemaining < 0
-                    ? splitOverpayAllowed(splitRows, totals.totalCents)
-                      ? `Change due: ${formatCents(-splitRemaining)} (cash)`
-                      : "Only a cash tender may overpay (BR-04)"
-                    : `Covered: ${formatCents(splitSum)}`}
+                    ? `Change ${formatCents(-splitRemaining)}`
+                    : "Covered"}
               </p>
             </div>
           ) : (
-            <Input label={`${payTab} reference`} value={reference} onChange={(e) => setReference(e.target.value)} placeholder={payTab === "CARD" ? "Auth code / last 4" : payTab === "WALLET" ? "Wallet txn ID" : "QR ref"} autoFocus />
+            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Reference" autoFocus />
           )}
 
           <div className="mt-4 flex gap-2">
-            <Button variant="ghost" full onClick={() => setPayOpen(false)}>Cancel · Esc</Button>
-            <Button variant="primary" size="lg" full onClick={() => void doCharge()} disabled={!canCharge || charging}>
-              {charging
-                ? "Charging…"
-                : payTab === "CASH" && tenderedCents < totals.totalCents
-                  ? "Enter tendered"
-                  : payTab === "SPLIT" && splitRemaining > 0
-                    ? `${formatCents(splitRemaining)} due`
-                    : `Confirm ${formatCents(totals.totalCents)}`}
+            <Button variant="ghost" full onClick={() => setPayOpen(false)}>Cancel</Button>
+            <Button variant="primary" size="lg" full onClick={() => void doCharge()} loading={charging} disabled={!canCharge}>
+              {payTab === "CASH" && tenderedCents < totals.totalCents
+                ? "Enter amount"
+                : `Confirm ${formatCents(totals.totalCents)}`}
             </Button>
           </div>
         </Modal>
       ) : null}
 
       {receipt ? (
-        <Modal title="Payment complete" onClose={() => setReceipt(null)}>
+        <Modal title=" " onClose={() => setReceipt(null)}>
           <div className="receipt-print text-center">
-            <span className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-emerald-100 text-xl text-emerald-800">✓</span>
-            <p className="text-sm tabular-nums text-gray-500">{receipt.orderNumber}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900">{formatCents(receipt.totalCents)}</p>
-            <p className="mt-1 text-sm text-gray-600">Change due: <span className="font-semibold tabular-nums text-emerald-800">{formatCents(receipt.changeCents)}</span></p>
-            {receipt.memberName ? (
-              <p className="mt-2 text-sm text-gray-600">
-                Member: <span className="font-medium text-gray-900">{receipt.memberName}</span>
-                {receipt.memberPoints != null ? (
-                  <span className="tabular-nums"> · {receipt.memberPoints} pts</span>
-                ) : null}
-              </p>
-            ) : null}
+            <span className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-[var(--color-success)]/10 text-xl text-[var(--color-success)]">✓</span>
+            <p className="text-sm tabular-nums text-[var(--color-text-muted)]">{receipt.orderNumber}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--color-text)]">{formatCents(receipt.totalCents)}</p>
+            <p className="mt-1 text-sm tabular-nums text-[var(--color-success)] font-semibold">{formatCents(receipt.changeCents)}</p>
           </div>
-          <div className="no-print mt-3 rounded-lg border border-gray-200 p-3">
-            <p className="text-left text-[13px] font-medium text-gray-700">Send receipt</p>
-            <div className="mt-1.5 flex gap-2">
-              <input
+          <div className="no-print mt-3 p-3">
+            <div className="flex gap-2">
+              <Input
                 value={delivTarget}
                 onChange={(e) => setDelivTarget(e.target.value)}
                 placeholder="Email or phone"
-                className="h-10 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-700 focus:outline-none"
+                className="h-10 min-w-0 flex-1"
                 aria-label="Receipt destination"
               />
-              <Button size="sm" variant="secondary" onClick={() => void deliver("EMAIL")} disabled={delivBusy !== null}>
-                {delivBusy === "EMAIL" ? "…" : "Email"}
+              <Button size="sm" variant="secondary" onClick={() => void deliver("EMAIL")} disabled={delivBusy !== null} aria-label="Email receipt">
+                ✉
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => void deliver("SMS")} disabled={delivBusy !== null}>
-                {delivBusy === "SMS" ? "…" : "SMS"}
+              <Button size="sm" variant="secondary" onClick={() => void deliver("SMS")} disabled={delivBusy !== null} aria-label="SMS receipt">
+                📱
               </Button>
             </div>
-            <p className="mt-1 text-left text-[11px] text-gray-400">Email or SMS delivery — queues locally while in demo mode.</p>
           </div>
           <div className="no-print mt-4 flex gap-2">
             <Button variant="secondary" full onClick={() => window.print()}>
-              Print receipt
+              Print
             </Button>
-            <Button variant="primary" full onClick={() => setReceipt(null)}>New sale</Button>
+            <Button
+              variant="secondary"
+              full
+              onClick={() => void thermalPrintOrder(receipt.orderId, { format: "escpos", cutPaper: true })}
+              loading={thermalPrinting}
+              disabled={thermalPrinting}
+            >
+              {thermalPrinting ? "Printing…" : "Thermal"}
+            </Button>
+            <Button variant="primary" full onClick={() => setReceipt(null)}>
+              Next
+            </Button>
           </div>
         </Modal>
       ) : null}
     </div>
   );
 }
+

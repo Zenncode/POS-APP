@@ -11,7 +11,7 @@ import { EmptyState, Spinner } from "~/shared/components/ui/Feedback";
 import type { Order, Role } from "~/types";
 
 export function meta(): { title: string }[] {
-  return [{ title: "Refund — POS Terminal" }];
+  return [{ title: "Refund — Point of Sale" }];
 }
 
 function canRefund(role: Role | undefined): boolean {
@@ -91,9 +91,9 @@ export default function Refund(): JSX.Element {
   }
 
   return (
-    <div className="min-h-0 bg-gray-50 p-6">
+    <div className="min-h-0 bg-[var(--color-surface)] p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Refund</h1>
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">Refund</h1>
         <Button variant="ghost" onClick={() => navigate("/orders", { replace: true })}>
           Back to Orders
         </Button>
@@ -115,35 +115,35 @@ export default function Refund(): JSX.Element {
       ) : orders.length === 0 ? (
         <EmptyState title="No paid orders found. Voided orders stay in Orders →." />
       ) : (
-        <ul className="mb-6 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
+        <ul className="mb-6 divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]">
           {orders.map((o) => (
             <li key={o.id}>
               <button
                 type="button"
                 onClick={() => void openDetail(o.id)}
-                className={`flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50 ${
-                  order?.id === o.id ? "bg-emerald-50" : ""
+                className={`flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--color-surface)] ${
+                  order?.id === o.id ? "bg-[var(--color-success)]/10" : ""
                 }`}
               >
-                <span className="text-sm font-medium text-gray-900">{o.orderNumber}</span>
-                <span className="text-sm tabular-nums text-emerald-700">{formatCents(o.totalCents)}</span>
+                <span className="text-sm font-medium text-[var(--color-text)]">{o.orderNumber}</span>
+                <span className="text-sm tabular-nums text-[var(--color-success)]">{formatCents(o.totalCents)}</span>
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      {detailError ? <p className="mb-4 text-sm text-red-600">{detailError}</p> : null}
+      {detailError ? <p className="mb-4 text-sm text-[var(--color-danger)]">{detailError}</p> : null}
 
       {order ? (
-        <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm font-medium text-gray-900">Order: {order.orderNumber}</p>
-          <p className="mt-1 text-sm text-gray-500">Date: {formatDateTime(order.createdAt)}</p>
-          <p className="mt-1 text-sm text-gray-500">
+        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+          <p className="text-sm font-medium text-[var(--color-text)]">Order: {order.orderNumber}</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Date: {formatDateTime(order.createdAt)}</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             Customer: {order.customer?.name ?? "Walk-in"}
           </p>
-          <p className="mt-1 text-sm tabular-nums text-gray-900">Total: {formatCents(order.totalCents)}</p>
-          <p className="mt-2 text-[13px] text-gray-500">
+          <p className="mt-1 text-sm tabular-nums text-[var(--color-text)]">Total: {formatCents(order.totalCents)}</p>
+          <p className="mt-2 text-[13px] text-[var(--color-text-muted)]">
             Full void only — restores stock via void. Partial line-level refunds need a backend
             endpoint (see roadmap).
           </p>
@@ -162,14 +162,15 @@ export default function Refund(): JSX.Element {
               placeholder="Reason for refund"
               required
             />
-            <Button variant="danger" full type="submit" disabled={refundBusy}>
-              {refundBusy ? "Refunding…" : `Void + refund ${formatCents(order.totalCents)}`}
+            <Button variant="danger" full type="submit" loading={refundBusy}>
+              {`Void + refund ${formatCents(order.totalCents)}`}
             </Button>
           </form>
         </section>
       ) : (
-        <p className="text-sm text-gray-500">Select a paid order above to refund it.</p>
+        <p className="text-sm text-[var(--color-text-muted)]">Select a paid order above to refund it.</p>
       )}
     </div>
   );
 }
+

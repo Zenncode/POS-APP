@@ -63,8 +63,8 @@ export function RequireAuth({ children }: { children: JSX.Element }): JSX.Elemen
   const loc = useLocation();
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="size-6 animate-spin rounded-full border-2 border-gray-300 border-t-emerald-700" />
+      <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)]">
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-emerald-700" />
       </div>
     );
   }
@@ -80,21 +80,21 @@ export default function MainLayout(): JSX.Element {
 
   // CartProvider lives in root.tsx above the Outlet — every route shares one cart.
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
+    <div suppressHydrationWarning className="flex h-screen overflow-hidden bg-[var(--color-bg)] text-[var(--color-text)]">
         <div className="hidden md:block">
           <Sidebar />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar title={meta.title} subtitle={meta.subtitle} />
           {/* Mobile nav — always shows core items for the role */}
-          <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 py-2 md:hidden" aria-label="Mobile">
+          <nav className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 md:hidden" aria-label="Mobile">
             {NAV_ITEMS.filter((item) => canSeeNav(user?.role, item)).map((to) => (
               <Link
                 key={to}
                 to={to}
                 aria-current={base === to ? "page" : undefined}
                 className={`rounded-md px-3 py-1.5 text-sm ${
-                  base === to ? "bg-gray-100 font-medium text-gray-900" : "text-gray-700 hover:bg-gray-100"
+                  base === to ? "bg-[var(--color-surface-hover)] font-medium text-[var(--color-text)]" : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                 }`}
               >
                 {NAV_LABELS[to]}

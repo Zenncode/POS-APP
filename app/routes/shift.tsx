@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { listOrders } from "~/lib/api";
 import { formatCents, formatDateTime } from "~/lib/format";
 import {
@@ -20,7 +20,7 @@ import { Input } from "~/shared/components/ui/Input";
 import type { Order, Shift } from "~/types";
 
 export function meta(): { title: string }[] {
-  return [{ title: "Shift — POS Terminal" }];
+  return [{ title: "Shift — Point of Sale" }];
 }
 
 function shiftStartIso(s: Shift): string {
@@ -37,25 +37,28 @@ function FloatGrid({
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {DENOMINATIONS_CENTS.map((d) => (
-        <label
+        <div
           key={d}
-          className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2"
+          className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2"
         >
-          <span className="text-sm tabular-nums text-gray-700">{formatCents(d)}</span>
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={values[d] ?? ""}
-            placeholder="0"
-            onChange={(e) => {
-              const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
-              onChange({ ...values, [d]: n });
-            }}
-            className="h-8 w-14 rounded-md border border-gray-300 px-1 text-center text-sm tabular-nums"
-            aria-label={`Count of ${formatCents(d)} bills/coins`}
-          />
-        </label>
+          <span className="text-sm tabular-nums text-[var(--color-neutral-700)]">{formatCents(d)}</span>
+          <div className="w-20 shrink-0">
+            <Input
+              id={`float-${d}`}
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={values[d] ?? ""}
+              placeholder="0"
+              aria-label={`Count of ${formatCents(d)} bills/coins`}
+              onChange={(e) => {
+                const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                onChange({ ...values, [d]: n });
+              }}
+              className="text-center tabular-nums"
+            />
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -106,6 +109,10 @@ export default function ShiftScreen(): JSX.Element {
     void loadShiftOrders();
   }, [loadShiftOrders]);
 
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
   const openingFloatCents = shift ? floatCents(shift.openingFloat) : 0;
   const expected = expectedCashCents(openingFloatCents, shiftOrders);
   const variance = varianceCents(expected, floatTotal);
@@ -145,13 +152,18 @@ export default function ShiftScreen(): JSX.Element {
     try {
       await close(toCounts(counts), note || undefined);
       push("success", `Shift closed · variance ${formatCents(variance)} — session ended.`);
-      await signOut();
-      navigate("/login", { replace: true });
     } catch {
       push("error", "Couldn't close the shift. Try again.");
-    } finally {
       setBusy(false);
+      return;
     }
+    try {
+      await signOut();
+    } catch {
+      // best effort — logout already clearTokens()s; never block the redirect
+    }
+    setBusy(false);
+    navigate("/login", { replace: true });
   }
 
   if (loading) {
@@ -176,33 +188,36 @@ export default function ShiftScreen(): JSX.Element {
     const faulty = DEVICE_LABELS.filter((d) => !devices[d.key]);
     return (
       <div className="mx-auto h-full max-w-2xl overflow-y-auto p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Open shift</h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <h2 className="text-lg font-semibold text-[var(--color-text)]">Open shift</h2>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
           Count the drawer float before your first sale. Sales are blocked until a shift is open.
         </p>
 
-        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-900">Opening float</p>
-            <p className="text-sm font-semibold tabular-nums text-emerald-800">{formatCents(floatTotal)}</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">Opening float</p>
+            <p className={`text-sm font-semibold tabular-nums ${floatTotal > 0 ? "text-[var(--color-success)]" : "text-[var(--color-text-muted)]"}`}>{formatCents(floatTotal)}</p>
           </div>
           <FloatGrid values={counts} onChange={setCounts} />
+          {/* FR-07 */}
           {floatTotal === 0 ? (
-            <p className="mt-2 text-xs text-gray-500">Enter at least one denomination count (FR-07).</p>
+            <p className="mt-2 text-xs text-[var(--color-text-muted)]">Enter at least one denomination count.</p>
           ) : null}
         </div>
 
-        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-sm font-medium text-gray-900">Device check (FR-08)</p>
+        <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+          {/* FR-08 */}
+          <p className="text-sm font-medium text-[var(--color-text)]">Device check</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {DEVICE_LABELS.map((d) => (
               <button
                 key={d.key}
+                aria-pressed={devices[d.key]}
                 onClick={() => setDevices((prev) => ({ ...prev, [d.key]: !prev[d.key] }))}
                 className={`rounded-lg border px-3 py-1.5 text-sm ${
                   devices[d.key]
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                    : "border-red-300 bg-red-50 text-red-800"
+                    ? "border-[var(--color-success)] bg-[var(--color-success)]/10 text-[var(--color-success)]"
+                    : "border-[var(--color-danger)] bg-[var(--color-danger)]/10 text-[var(--color-danger)]"
                 }`}
               >
                 {d.label}: {devices[d.key] ? "OK" : "Fault"}
@@ -210,7 +225,7 @@ export default function ShiftScreen(): JSX.Element {
             ))}
           </div>
           {faulty.length > 0 ? (
-            <p className="mt-2 text-xs text-amber-700">
+            <p className="mt-2 text-xs text-[var(--color-warning)]">
               Fault logged for: {faulty.map((f) => f.label).join(", ")}. You can still open and sell — faults appear in the Z-report.
             </p>
           ) : null}
@@ -220,8 +235,8 @@ export default function ShiftScreen(): JSX.Element {
           <Input label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. drawer sealed, tape #123" />
         </div>
 
-        <Button variant="primary" size="lg" full className="mt-4" onClick={() => void doOpen()} disabled={busy || floatTotal <= 0}>
-          {busy ? "Opening…" : "Open shift & start selling"}
+        <Button variant="primary" size="lg" full className="mt-4" onClick={() => void doOpen()} loading={busy} disabled={floatTotal <= 0}>
+          Open shift &amp; start selling
         </Button>
       </div>
     );
@@ -230,48 +245,48 @@ export default function ShiftScreen(): JSX.Element {
   // ── Close shift (FR-10/11/12, UC-12) ──
   return (
     <div className="mx-auto h-full max-w-2xl overflow-y-auto p-4 sm:p-6">
-      <h2 className="text-lg font-semibold text-gray-900">Close shift</h2>
-      <p className="mt-1 text-sm text-gray-500">
+      <h2 className="text-lg font-semibold text-[var(--color-text)]">Close shift</h2>
+      <p className="mt-1 text-sm text-[var(--color-text-muted)]">
         Started {formatDateTime(openSince ?? "")} · {shiftOrders.length} orders · {formatCents(sales)} sales.
         Closing ends your session (FR-04).
       </p>
 
       <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <dt className="text-gray-500">Opening float</dt>
-          <dd className="mt-1 text-base font-semibold tabular-nums text-gray-900">{formatCents(openingFloatCents)}</dd>
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <dt className="text-[var(--color-text-muted)]">Opening float</dt>
+          <dd className="mt-1 text-base font-semibold tabular-nums text-[var(--color-text)]">{formatCents(openingFloatCents)}</dd>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <dt className="text-gray-500">Expected cash</dt>
-          <dd className="mt-1 text-base font-semibold tabular-nums text-gray-900">
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <dt className="text-[var(--color-text-muted)]">Expected cash</dt>
+          <dd className="mt-1 text-base font-semibold tabular-nums text-[var(--color-text)]">
             {ordersLoading ? "…" : formatCents(expected)}
           </dd>
         </div>
       </dl>
 
       {pending.length > 0 ? (
-        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="mt-4 rounded-lg border border-[var(--color-warning)] bg-[var(--color-warning)]/10 p-3 text-sm text-[var(--color-text)]">
           {pending.length} pending sale{pending.length > 1 ? "s" : ""} must be completed or voided before closing (FR-11).{" "}
-          <button className="font-medium underline" onClick={() => navigate("/orders")}>
+          <Link to="/orders" className="font-medium underline">
             Go to Orders
-          </button>
+          </Link>
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-medium text-gray-900">Closing count</p>
-          <p className="text-sm font-semibold tabular-nums text-gray-900">{formatCents(floatTotal)}</p>
+          <p className="text-sm font-medium text-[var(--color-text)]">Closing count</p>
+          <p className="text-sm font-semibold tabular-nums text-[var(--color-text)]">{formatCents(floatTotal)}</p>
         </div>
         <FloatGrid values={counts} onChange={setCounts} />
-        <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-          <p className="text-sm text-gray-600">Variance (counted − expected)</p>
-          <p className={`text-sm font-semibold tabular-nums ${variance === 0 ? "text-emerald-800" : "text-red-700"}`}>
+        <div className="mt-3 flex items-center justify-between border-t border-[var(--color-neutral-100)] pt-3">
+          <p className="text-sm text-[var(--color-neutral-600)]">Variance (counted − expected)</p>
+          <p className={`text-sm font-semibold tabular-nums ${variance === 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
             {formatCents(variance)}
           </p>
         </div>
         {varianceNeedsNote ? (
-          <p className="mt-2 text-xs text-amber-700">
+          <p className="mt-2 text-xs text-[var(--color-warning)]">
             Variance over ₱100 — a manager note is required (UC-12).
           </p>
         ) : null}
@@ -292,10 +307,12 @@ export default function ShiftScreen(): JSX.Element {
         full
         className="mt-4"
         onClick={() => void doClose()}
-        disabled={busy || pending.length > 0 || (varianceNeedsNote && !note.trim())}
+        loading={busy}
+        disabled={pending.length > 0 || (varianceNeedsNote && !note.trim())}
       >
-        {busy ? "Closing…" : "Close shift & sign out"}
+        Close shift &amp; sign out
       </Button>
     </div>
   );
 }
+

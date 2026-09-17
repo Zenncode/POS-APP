@@ -6,14 +6,14 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { Badge } from "~/shared/components/ui/Badge";
 import { Button } from "~/shared/components/ui/Button";
-import { EmptyState, Spinner } from "~/shared/components/ui/Feedback";
 import { Input } from "~/shared/components/ui/Input";
 import { Modal } from "~/shared/components/ui/Modal";
+import { Table, type Column } from "~/shared/components/ui/Table";
 import type { Category, Product, StaffUser } from "~/types";
 import { roleAtLeast } from "~/shared/hooks/useAuth";
 
 export function meta(): { title: string }[] {
-  return [{ title: "Products — POS Terminal" }];
+  return [{ title: "Products — Point of Sale" }];
 }
 
 function canManageProducts(role: StaffUser["role"] | undefined): boolean {
@@ -50,7 +50,7 @@ export default function Products(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [catId, q, push, canManage]);
+  }, [catId, q, push]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void load(), 250);
@@ -79,8 +79,8 @@ export default function Products(): JSX.Element {
         name: form.name.trim(),
         priceCents: cents,
         stock: st,
-        barcode: form.barcode.trim() || null,
-        categoryId: catId || null,
+        barcode: form.barcode.trim() || undefined,
+        categoryId: catId || undefined,
       });
       push("success", `${form.name} created`);
       setCreateOpen(false);
@@ -115,19 +115,68 @@ export default function Products(): JSX.Element {
     }
   }
 
+  const columns: Column<Product>[] = [
+    {
+      key: "sku",
+      header: "SKU / Name",
+      render: (p) => (
+        <div>
+          <p className="font-medium text-[var(--color-text)]">{p.name}</p>
+          <p className="text-xs tabular-nums text-[var(--color-text-muted)]">{p.sku}{p.barcode ? ` · ${p.barcode}` : ""}</p>
+        </div>
+      ),
+    },
+    {
+      key: "price",
+      header: "Price",
+      align: "right",
+      render: (p) => <span className="tabular-nums">{formatCents(p.priceCents)}</span>,
+    },
+    {
+      key: "stock",
+      header: "Stock",
+      align: "right",
+      render: (p) => <span className="tabular-nums">{p.stock}</span>,
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (p) => (
+        p.stock <= 0 ? <Badge tone="LOW">Out</Badge> : p.stock <= p.lowStockThreshold ? <Badge tone="LOW">Low</Badge> : <Badge tone="OK">OK</Badge>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      render: (p) => (
+        <div className="flex justify-end gap-1">
+          {canManage ? (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => void onAdjust(p, 1)} title="Stock +1">+1</Button>
+              <Button variant="secondary" size="sm" onClick={() => void onAdjust(p, -1)} title="Stock −1">−1</Button>
+              <Button variant="secondary" size="sm" onClick={() => void onAdjust(p, 10)} title="Restock +10">+10</Button>
+            </>
+          ) : null}
+          <Button variant="danger" size="sm" onClick={() => void onArchive(p)}>Archive</Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex h-full min-h-0">
-      <div className="w-[220px] shrink-0 border-r border-gray-200 bg-white p-3">
-        <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-gray-500">Categories</p>
-        <button onClick={() => setCatId("")} className={`mb-1 w-full rounded-lg border-l-2 px-3 py-2 text-left text-sm ${catId === "" ? "border-emerald-700 bg-gray-100 font-medium text-gray-900" : "border-transparent text-gray-700 hover:bg-gray-50"}`}>All</button>
+      <div className="w-[220px] shrink-0 border-r border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Categories</p>
+        <button onClick={() => setCatId("")} className={`mb-1 w-full rounded-lg border-l-2 px-3 py-2 text-left text-sm ${catId === "" ? "border-emerald-700 bg-[var(--color-surface-hover)] font-medium text-[var(--color-text)]" : "border-transparent text-[var(--color-neutral-700)] hover:bg-[var(--color-surface)]"}`}>All</button>
         {categories.map((c) => (
-          <button key={c.id} onClick={() => setCatId(c.id)} className={`mb-1 w-full rounded-lg border-l-2 px-3 py-2 text-left text-sm ${catId === c.id ? "border-emerald-700 bg-gray-100 font-medium text-gray-900" : "border-transparent text-gray-700 hover:bg-gray-50"}`}>
+          <button key={c.id} onClick={() => setCatId(c.id)} className={`mb-1 w-full rounded-lg border-l-2 px-3 py-2 text-left text-sm ${catId === c.id ? "border-emerald-700 bg-[var(--color-surface-hover)] font-medium text-[var(--color-text)]" : "border-transparent text-[var(--color-neutral-700)] hover:bg-[var(--color-surface)]"}`}>
             <span className="block truncate">{c.name}</span>
           </button>
         ))}
       </div>
 
-      <div className="min-w-0 flex-1 overflow-y-auto bg-gray-50 p-6">
+      <div className="min-w-0 flex-1 overflow-y-auto bg-[var(--color-surface)] p-6">
         <div className="mb-4 flex gap-2">
           <div className="max-w-sm flex-1">
             <Input placeholder="Search SKU, name, barcode…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search products" />
@@ -136,54 +185,17 @@ export default function Products(): JSX.Element {
             <Button variant="primary" onClick={() => setCreateOpen(true)}>+ Product</Button>
           )}
           {!canManage && (
-            <span className="text-[13px] text-gray-500">Managers only</span>
+            <span className="text-[13px] text-[var(--color-text-muted)]">Managers only</span>
           )}
         </div>
 
-        {loading ? (
-          <Spinner />
-        ) : products.length === 0 ? (
-          <EmptyState title="No products in this view. Add one →" action={<Button variant="primary" onClick={() => setCreateOpen(true)}>+ Product</Button>} />
-        ) : (
-          <div className="overflow-hidden rounded-[14px] border border-gray-200 bg-white">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-left text-[13px] text-gray-500">
-                  <th className="px-4 py-2 font-medium">SKU / Name</th>
-                  <th className="px-4 py-2 text-right font-medium">Price</th>
-                  <th className="px-4 py-2 text-right font-medium">Stock</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5">
-                      <p className="font-medium text-gray-900">{p.name}</p>
-                      <p className="text-xs tabular-nums text-gray-400">{p.sku}{p.barcode ? ` · ${p.barcode}` : ""}</p>
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-900">{formatCents(p.priceCents)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-900">{p.stock}</td>
-<td className="px-4 py-2.5">
-                      {p.stock <= 0 ? <Badge tone="LOW">Out</Badge> : p.stock <= p.lowStockThreshold ? <Badge tone="LOW">Low</Badge> : <Badge tone="OK">OK</Badge>}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      {canManage ? (
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => void onAdjust(p, 1)} className="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50" title="Stock +1">+1</button>
-                          <button onClick={() => void onAdjust(p, -1)} className="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50" title="Stock −1">−1</button>
-                          <button onClick={() => void onAdjust(p, 10)} className="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50" title="Restock +10">+10</button>
-                        </div>
-                      ) : null}
-                      <button onClick={() => void onArchive(p)} className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50">Archive</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <Table
+          columns={columns}
+          data={products}
+          rowKey={(p) => p.id}
+          loading={loading}
+          emptyMessage="No products in this view. Add one →"
+        />
 
         {createOpen ? (
           <Modal title="New product" onClose={() => setCreateOpen(false)}>
@@ -206,3 +218,4 @@ export default function Products(): JSX.Element {
     </div>
   );
 }
+

@@ -1,0 +1,95 @@
+/* POS-APP/app/styles/tokens.css */
+:root {
+  /* Color - Semantic */
+  --color-primary: #046c4e;
+  --color-primary-hover: #047857;
+  --color-primary-focus: #065f46;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-focus: #991b1b;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-info: #0284c7;
+
+  /* Soft tints (toast borders etc.) — light */
+  --color-success-soft: #a7f3d0; /* emerald-200 */
+  --color-danger-soft: #fecaca;  /* red-200 */
+  --color-info-soft: #bae6fd;    /* sky-200 */
+
+  /* Color - Neutral scale */
+  --color-neutral-950: #030712;
+  --color-neutral-900: #111827;
+  --color-neutral-800: #1f2937;
+  --color-neutral-700: #374151;
+  --color-neutral-600: #4b5563;
+  --color-neutral-500: #6b7280;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-50: #f9fafb;
+  --color-neutral-0: #ffffff;
+
+  /* Color - Semantic mappings */
+  --color-bg: var(--color-neutral-0);
+  --color-surface: var(--color-neutral-50);
+  --color-surface-hover: var(--color-neutral-100);
+  --color-border: var(--color-neutral-200);
+  --color-border-focus: var(--color-primary-focus);
+  --color-border-error: var(--color-danger);
+  --color-text: var(--color-neutral-900);
+  --color-text-muted: var(--color-neutral-500);
+  --color-text-inverse: var(--color-neutral-0);
+  --color-overlay: rgba(3, 7, 18, 0.4);
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.8125rem;  /* 13px */
+  --text-base: 0.875rem; /* 14px */
+  --text-lg: 0.9375rem;  /* 15px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Z-index scale */
+  --z-dropdown: 50;
+  --z-sticky: 60;
+  --z-modal-backdrop: 80;
+  --z-modal: 90;
+  --z-popover: 95;
+  --z-tooltip: 100;
+  --z-toast: 110;
+}
