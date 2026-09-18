@@ -29,6 +29,8 @@ export default function Products(): JSX.Element {
   const [products, setProducts] = useState<Product[]>([]);
   const [catId, setCatId] = useState("");
   const [q, setQ] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
+  const [totalProducts, setTotalProducts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ sku: "", name: "", price: "", stock: "0", barcode: "" });
@@ -45,6 +47,7 @@ export default function Products(): JSX.Element {
       ]);
       setCategories(cats);
       setProducts(prods.data);
+      setTotalProducts(prods.total);
     } catch {
       push("error", "Failed to load products. Try again.");
     } finally {
@@ -114,6 +117,12 @@ export default function Products(): JSX.Element {
       push("error", "Archive failed. Try again.");
     }
   }
+
+  const visibleProducts = products.filter((product) => {
+    if (stockFilter === "out") return product.stock <= 0;
+    if (stockFilter === "low") return product.stock > 0 && product.stock <= product.lowStockThreshold;
+    return true;
+  });
 
   const columns: Column<Product>[] = [
     {
@@ -189,12 +198,31 @@ export default function Products(): JSX.Element {
           )}
         </div>
 
+        <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Stock filter">
+          {([
+            ["all", "All stock"],
+            ["low", "Low stock"],
+            ["out", "Out of stock"],
+          ] as const).map(([value, label]) => (
+            <Button key={value} variant={stockFilter === value ? "primary" : "secondary"} aria-pressed={stockFilter === value} onClick={() => setStockFilter(value)}>
+              {label}
+            </Button>
+          ))}
+        </div>
+        <p className="mb-3 text-sm text-[var(--color-text-muted)]" role="status">
+          {loading ? "Loading products…" : `${visibleProducts.length} of ${products.length} loaded products shown`}
+        </p>
+        {!loading && totalProducts > products.length && (
+          <p className="mb-3 text-sm text-[var(--color-text-muted)]">
+            Stock filters apply only to the {products.length} loaded products out of {totalProducts} matches. Narrow your search or category to find more items.
+          </p>
+        )}
         <Table
           columns={columns}
-          data={products}
+          data={visibleProducts}
           rowKey={(p) => p.id}
           loading={loading}
-          emptyMessage="No products in this view. Add one →"
+          emptyMessage={stockFilter === "all" ? "No products match your search or category." : "No loaded products match this stock filter. Try All stock."}
         />
 
         {createOpen ? (
