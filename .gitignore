@@ -1,5 +1,4 @@
 .DS_Store
-.env
 /node_modules/
 
 # React Router
@@ -9,3 +8,4 @@
 # Playwright E2E artifacts
 /test-results/
 /playwright-report/
+config.bat
